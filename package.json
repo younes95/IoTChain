@@ -1,0 +1,22 @@
+{
+  "name": "blockchain-starter-kit",
+  "version": "0.0.1",
+  "dependencies": {
+    "delivery": "0.0.6",
+    "eccrypto": "^1.0.3",
+    "express": "^4.16.3",
+    "jsonfile": "^4.0.0",
+    "merkle": "^0.5.1",
+    "node-forge": "^0.7.4",
+    "shortid": "^2.2.8",
+    "utils-merge": "^1.0.0",
+    "uuid": "^3.0.1",
+    "websocket": "^1.0.23"
+  },
+  "devDependencies": {},
+  "scripts": {},
+  "author": "jollen",
+  "engines": {
+    "node": "4.4"
+  }
+}
