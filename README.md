@@ -31,4 +31,4 @@ server.start({
 
 ## License
 
-Copyright (C) 2016-present Jollen. The source code is licensed under the MIT license found in the [LICENSE](LICENSE) file.
+The source code is licensed under the MIT license found in the [LICENSE](LICENSE) file.
