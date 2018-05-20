@@ -140,7 +140,7 @@ var onmessage = function(payload) {
         var fileAdresses = __dirname + '/tmp/node/adresses.json';
         var fileAccess = __dirname + '/tmp/node/list.json';
         // Test if the node exist
-        var bool = existNode(message.publicKey,message.mac,fileAdresses);
+        var bool = existNode(message.publicKey,message.mac,message.role,fileAdresses);
        
             if(bool == true){
                
@@ -203,7 +203,7 @@ var onmessage = function(payload) {
 
     // Receiving the Blockchain
     if(message.type == 7){
-       console.log('received');
+       console.log('received Blockchain');
         var file = __dirname + '/tmp/node/blocs/data.json';
         var fileAdresses = __dirname + '/tmp/node/adresses.json';
         var fileConfig = __dirname + '/tmp/node/config.json';
@@ -213,10 +213,9 @@ var onmessage = function(payload) {
         // Save the newest blocks
         
         data= fs.readFileSync(file, 'utf8');
-        console.log('Block received '+blocks);
         var objReceived=null;
         if(data.length == 0){
-            obj.table.push({Block : block});
+            obj.table.push(blocks);
             var json = JSON.stringify(obj);
             fs.writeFileSync(file, json, 'utf8');
         }else{
@@ -346,6 +345,136 @@ var onmessage = function(payload) {
         }
     }
 
+    //Receiving response (BC access list and addresses) and generate keypair
+    if(message.type == 9){
+        console.log('received Blockchain');
+        var file = __dirname + '/tmp/node/blocs/data.json';
+        var fileAdresses = __dirname + '/tmp/node/adresses.json';
+        var fileConfig = __dirname + '/tmp/node/config.json';
+        var fileAccess = __dirname + '/tmp/node/list.json';
+        var blocks= message.blocs;
+        
+        // Generate keypair
+        var dataConfig=fs.readFileSync(fileConfig, 'utf8');
+
+        if(dataConfig.length != 0){
+            objConfig = JSON.parse(dataConfig);
+
+            // Generate keypair for the node  
+            var privateKey = crypto.randomBytes(32);
+            var publicKey = eccrypto.getPublic(privateKey);
+
+            objConfig.table[0].Key.publicKey = toHexString(publicKey);
+            objConfig.table[0].Key.privateKey = toHexString(privateKey);
+        
+            // Fill in the file config of the node
+
+            var jsonConfig = JSON.stringify(objConfig);
+            fs.writeFileSync(fileConfig, jsonConfig, 'utf8');
+        }
+        // Save the newest blocks
+        
+        data= fs.readFileSync(file, 'utf8');
+        var objReceived=null;
+        if(data.length == 0){
+            obj.table.push(blocks);
+            var json = JSON.stringify(obj);
+            fs.writeFileSync(file, json, 'utf8');
+        }else{
+            obj = JSON.parse(data);
+            objReceived=JSON.parse(blocks);
+            var i=0;
+
+            for(i=0;i<objReceived.table.length;i++){
+                obj.table.push({Block : objReceived.table[i].Block});
+            }
+           
+            var json = JSON.stringify(obj);
+            fs.writeFileSync(file, json, 'utf8'); 
+        }
+
+        // Save the addresses
+        var dataReceived=message.adresses;
+        var dataAdresses= fs.readFileSync(fileAdresses,'utf8');
+        var dataConfig = fs.readFileSync(fileConfig,'utf8');
+        var objConfig = JSON.parse(dataConfig);
+        var objAdresses={
+            table : []
+        };
+        var jsonAdresses;
+                
+        if(dataReceived.length != 0){
+            
+            if(dataAdresses.length != 0){
+                var objAdresses = JSON.parse(dataAdresses);    
+            }
+            var objReceived = dataReceived;
+
+            for(var i=0;i<objReceived.table.length;i++){
+                var bool = false;
+                for(var j=0;j<objAdresses.table.length;j++){
+                   if(objAdresses.table[j].Node.adr == objReceived.table[i].Node.adr) bool=true ;  
+                }
+                if(bool == false){
+                    objAdresses.table.push({Node: objReceived.table[i].Node}); 
+                    var jsonAdresses = JSON.stringify(objAdresses);
+                    fs.writeFileSync(fileAdresses, jsonAdresses, 'utf8');
+                }
+                
+            }
+        }
+
+        // Save the access list
+        var listAccess = {
+            table : []
+        };
+        var listAccessReceived=message.accesslist;
+        k=0;
+        if(listAccessReceived.length != 0){
+            for(i=0;i<listAccessReceived.table[0].Node.length;i++){
+                for(j=0;j<listAccessReceived.table[0].Node[i].accesslist.length;j++){
+                    if(listAccessReceived.table[0].Node[i].adr == objConfig.table[0].Server.MAC){
+                        
+                        if(listAccessReceived.table[0].Node[i].accesslist[j].ressource == objConfig.table[0].Server.MAC){
+                            var ressource = objConfig.table[0].Key.publicKey;
+                        }else{
+                            var ressource = listAccessReceived.table[0].Node[i].accesslist[j].ressource;
+                        }
+                        
+                        listAccess.table.push({
+                            requester : objConfig.table[0].Key.publicKey,
+                            requested : ressource,
+                            rights : listAccessReceived.table[0].Node[i].accesslist[j].rights,
+                            conditions  : listAccessReceived.table[0].Node[i].accesslist[j].conditions,
+                            obligations : listAccessReceived.table[0].Node[i].accesslist[j].obligations
+                        });
+                    }else{
+                        if(listAccessReceived.table[0].Node[i].accesslist[j].ressource == objConfig.table[0].Server.MAC){
+                            var ressource = objConfig.table[0].Key.publicKey;
+                        }else{
+                            var ressource = listAccessReceived.table[0].Node[i].accesslist[j].ressource;
+                        }
+
+                        listAccess.table.push({
+                            requester : listAccessReceived.table[0].Node[i].adr,
+                            requested : ressource,
+                            rights : listAccessReceived.table[0].Node[i].accesslist[j].rights,
+                            conditions  : listAccessReceived.table[0].Node[i].accesslist[j].conditions,
+                            obligations : listAccessReceived.table[0].Node[i].accesslist[j].obligations
+                        });
+                    }
+                }
+            }
+        }
+
+        saveAccessRight(fileAccess,listAccess.table);
+
+        // Send keypair generated and MAC to update
+        macadr = objConfig.table[0].Server.MAC;
+        publicKey = objConfig.table[0].Key.publicKey;
+        broadcast_publicKey(fileAdresses,publicKey,macadr)
+    }
+
     // Receiving transaction to validate
     if(message.type == 10){
         transaction=message.transaction;
@@ -390,6 +519,21 @@ var onmessage = function(payload) {
             server.sendMessage({address: message.host, port: message.port},packet);
     } 
 
+    // Receiving publicKey 
+    if(message.type == 11){
+        console.log('Receiving publicKey');
+
+        var fileAdresses = __dirname + '/tmp/node/adresses.json';
+        var fileAccess = __dirname + '/tmp/node/list.json';
+        
+        publicKey = message.publicKey;
+        mac = message.mac;
+        //Update access list
+        update_access_list(publicKey,mac,fileAccess);
+        //Update adresses list
+        update_adresses(publicKey,mac,fileAdresses);
+    }
+
     // Receiving response to request validation transaction 
     if(message.type == 12){
 
@@ -413,9 +557,9 @@ var onmessage = function(payload) {
                         console.log('Transaction success ... Broadcast response to miner');
                         bool = true;
                         insert_Transaction(objTmp.table[i].Transaction,fileData);
-                        broadcast_response(fileAdresses,objTmp.table[i].Transaction.hash,get_publicKey_node(fileConfig),'valid');
-                         // Inform the two node that the access is granted
                         console.log(objTmp.table[i].Transaction.requester+' can '+objTmp.table[i].Transaction.action+' '+objTmp.table[i].Transaction.requested);
+                        // Inform the two node that the access is granted
+                        broadcast_response(fileAdresses,objTmp.table[i].Transaction.hash,get_publicKey_node(fileConfig),'valid');
                     }
                     if(objTmp.table[i].nb_node/2 < objTmp.table[i].nb_reject){
                         console.log('Transaction rejected ... Don\'t Broadcast response to miner');
@@ -614,8 +758,9 @@ function receiveNewNode(){
         res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
         console.log('New Node');
 
-        var fileAdresses = __dirname+'/tmp/node/adresses.json';        
-        var fileConfig = __dirname+'/tmp/node/config.json';
+        var fileAdresses = __dirname+'/tmp/node/adresses.json';  
+        var fileAccess=__dirname+'/tmp/node/list.json';      
+        var file = __dirname + '/tmp/node/blocs/data.json';
         objReceived=req.body;
         
         // Test if the node exist
@@ -633,33 +778,66 @@ function receiveNewNode(){
             saveNodeMacAdr(ip,port,mac,host,role,fileAdresses);
 
             // Save access rights of the new node
-            var fileAccess=__dirname+'/tmp/node/list.json';
             var listAccess=objReceived.listAccess;     
-
             saveAccessRight(fileAccess,listAccess);
+
             var dataConfig=fs.readFileSync(fileConfig, 'utf8');
             objConfig = JSON.parse(dataConfig);
             
-            /*if(objReceived.publicKey == objConfig.table[0].Key.publicKey) statut = 'ME';
-            else statut = 'SUCCESS';*/
             response='SUCCESS';
-            var packet = {
-                from: {
-                    address: server.host,
-                    port: server.port ,
-                    id: server.id
-                    },
-                message: { type: 9, host: server.host, port: server.port, response : response } 
-            };
-            server.sendMessage({address: ip, port: port},packet);
-           
-        }
+            if(role == 'miner' && objConfig.table[0].Server.port == 8000){ // is the selected miner
+                
+                // Get the Blockchain 
+                
+                var jsonToSend=null;
+                data=fs.readFileSync(file, 'utf8');
+                if(data.length != 0){
+                    obj = JSON.parse(data);
+                }else{
+                    obj = '';    
+                }
 
+                // Get the adresses list
+
+                var dataAdresses=fs.readFileSync(fileAdresses, 'utf8');
+                if(dataAdresses.length!=0){
+                    var objAdresses= JSON.parse(dataAdresses);
+                }else{
+                    var objAdresses='';
+                }
+
+                // Get the access list
+
+                var dataAccess=fs.readFileSync(fileAccess,'utf8');
+                if(dataAccess.length!=0){
+                    var objAccess= JSON.parse(dataAccess);
+                }else{
+                    var objAccess='';
+                }
+
+                // Send to the node addresses, access list and BC
+                var packet = {
+                    from: {
+                        address: server.host,
+                        port: server.port ,
+                        id: server.id
+                        },
+                    message: { type: 9, host: server.host, port: server.port, response : response, blocs : obj, adresses : objAdresses, accesslist : objAccess } 
+                };
+                server.sendMessage({address: ip, port: port},packet);
+            }
+        }
+        res.send({'response' : response });
+    });
+
+    app.all('/configNode', function(req, res) {
+        res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
+        console.log('Config Node');
         // Save in the config file
-       /* var fileConfig = __dirname+'/tmp/node/config.json';
+        var fileConfig = __dirname+'/tmp/node/config.json';
+        objReceived=req.body;
         var jsonfile = require('jsonfile');
-        publicKey=configNode(req.body.ipadr,req.body.macadr,req.body.role,fileConfig);
-        */res.send({'publicKey' : publicKey, 'MAC': req.body.macadr, 'IP': req.body.ipadr, 'role': req.body.role });
+        configNode(req.body.ipadr,req.body.macadr,req.body.role,fileConfig);
     });
 
     app.post('/addnewNode', function(req, res) {
@@ -671,9 +849,7 @@ function receiveNewNode(){
         
         // Test if the node exist
         var bool=existNode(objReceived.publicKey,objReceived.mac,fileAdresses);
-       
         var statut = 'FAIL';
-
         if(bool == false) {
             //node doesn't exist , save it
             port=8001;
@@ -715,8 +891,8 @@ function receiveNewNode(){
             var data=fs.readFileSync(file, 'utf8');
                         
             if(data.length != 0){
-                obj = JSON.parse(data);
-                lastHash=obj.table[obj.table.length-1].Block.hash;
+                objData = JSON.parse(data);
+                lastHash=obj.table[objData.table.length-1].Block.hash;
             }
 
             //Send request to synchronize
@@ -780,10 +956,9 @@ function receiveNewNode(){
         adresses=get_all_node(fileAdresses);
         res.send(adresses);
     });
-    port=9002;
+    port=9000;
     app.listen(port, function() {
     });
-
 }
 
 function saveAccessRight(fileAccess,listAccess){
@@ -791,7 +966,6 @@ function saveAccessRight(fileAccess,listAccess){
     var objAccess= {
         table: []
     };
-
     if(dataAccess.length != 0 ){
                var objAccess = JSON.parse(dataAccess);
             
@@ -854,7 +1028,7 @@ function saveNode(publicKey,ip,port,mac,host,role,fileAdresses){
     fs.writeFileSync(fileAdresses, jsonAdresses, 'utf8');
 }
 
-function existNode(publicKey,mac,fileAdresses){
+function existNode(publicKey,mac,role,fileAdresses){
     var objAdresses = {
         table: []
         };
@@ -867,6 +1041,7 @@ function existNode(publicKey,mac,fileAdresses){
             //Test adress mac and public key if exist
             if(objAdresses.table[i].Node.adr == publicKey) bool=true;
             if(objAdresses.table[i].Node.MAC == mac) bool=true;
+            if(objAdresses.table[i].Node.role != role) bool=false;
         }
     }
     return bool;
@@ -876,19 +1051,11 @@ function configNode(ip,mac,role,fileConfig){
     var obj = {
             table: []
         };
-        
-    var dataConfig=fs.readFileSync(fileConfig, 'utf8');
-    objConfig = JSON.parse(dataConfig);
-    var Key= {
-        publicKey : objConfig.table[0].Key.publicKey
-    };
-    objConfig.table[0].Server.IP = ip;
-    objConfig.table[0].Server.MAC = mac;
-    objConfig.table[0].Role.desc = role;
-    var jsonConfig = JSON.stringify(objConfig);
+       
+    obj.table.push({Server :{host : 'localhost',port : port, IP : ip, MAC : mac }, Key : {publicKey : '',privateKey : ''}, Role{desc : role}});
+    var jsonConfig = JSON.stringify(obj);
     fs.writeFileSync(fileConfig, jsonConfig, 'utf8');
 
-    return Key.publicKey;
 }
 
 function QueryPermission(fileAccess,requester,requested,action,conditions,obligations){
@@ -1021,22 +1188,34 @@ function verify_transaction_request(transaction,fileAccess,fileAdresses,fileData
     var transaction_request= new TransactionRequest();
 
     var boolToken=token.verify(transaction.token.hash,transaction.token.action,transaction.token.validity,transaction.token.timestamp);
+     console.log('Bool Token : '+boolToken);
     if(boolToken == false) return false;
-
+   
+    
     var boolTransaction=transaction_request.verify(transaction.hash,transaction.requested,transaction.requester,transaction.action,transaction.timestamp,transaction.token);  
+    console.log('Bool Transaction : '+boolTransaction);
     if(boolTransaction == false) return false;   
+    
 
     var boolExistTransaction=existTransaction(transaction.hash,fileData);
+    console.log('Bool Exist Transaction : '+boolExistTransaction);
     if(boolExistTransaction == true) return false;
-
-    var boolExistRequested=existNode(transaction.requested,fileAdresses);
+    
+    
+    /*var boolExistRequested=existNode(transaction.requested,fileAdresses);
+    console.log('Bool Exist Requested : '+boolExistRequested);
     if(boolExistRequested == false) return false;
+    */
 
     var boolExistRequester=existNode(transaction.requester,fileAdresses);
+    console.log('Bool Exist requester : '+boolExistRequester);
     if(boolExistRequester == false) return false;
+    
 
     var boolPermission=QueryPermission(fileAccess,transaction.requester,transaction.requested,transaction.action,'conditions','obligations');
+    console.log('Bool Permission : '+boolPermission);
     if(boolPermission == false) return false;
+    
 
     return true;
 }
@@ -1165,10 +1344,11 @@ function check_efficiency(transaction,fileAdresses,fileData,fileAccess){
     console.log('Exist Transaction : '+boolExistTransaction);
     if(boolExistTransaction == false) return false;
 
-   /* boolExistToken = existToken(token,fileData);
+    /* boolExistToken = existToken(token,fileData);
     console.log('Exist Token : '+boolExistToken);
     if(boolExistToken == false) return false;
     */
+
     boolHasPermission = QueryPermission(fileAccess,transaction.requester,transaction.requested,transaction.action,transaction.conditions,transaction.obligations);
     console.log('Has Permission : '+boolHasPermission);
     if(boolHasPermission == false) return false;
@@ -1211,7 +1391,7 @@ function saveNodeMacAdr(ip,port,mac,host,role,fileAdresses){
 }
 
 function existNodeMacAdr(mac,fileAdresses){
-      var objAdresses = {
+    var objAdresses = {
         table: []
         };
     var dataAdresses=fs.readFileSync(fileAdresses, 'utf8');
@@ -1224,6 +1404,72 @@ function existNodeMacAdr(mac,fileAdresses){
         }
     }
     return false;
+}
+
+function broadcast_publicKey(fileAdresses,publicKey,macadr){
+    var objAdresses = {
+        table: []
+        };
+
+    var dataAdresses=fs.readFileSync(fileAdresses, 'utf8');
+    var bool= false;
+    if(dataAdresses.length != 0 ){
+        objAdresses = JSON.parse(dataAdresses);
+
+        for(i=0;i<Object.keys(objAdresses.table).length;i++){
+            //Test if node is miner
+            if(objAdresses.table[i].Node.role == 'miner'){
+                var packet = {
+                    from: {
+                        address: server.host,
+                        port: server.port ,
+                        id: server.id
+                        },
+                    message: { type: 11, host: server.host, port: server.port, publicKey: publicKey, mac : macadr } 
+                };
+                server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
+            }
+        }
+    }
+}
+
+function update_adresses(publicKey,mac,fileAdresses){
+    var objAdresses = {
+        table: []
+        };
+
+    var dataAdresses=fs.readFileSync(fileAdresses, 'utf8');
+    
+    if(dataAdresses.length != 0 ){
+        objAdresses = JSON.parse(dataAdresses);
+        for(i=0;i<objAdresses.table.length;i++){
+            if(objAdresses.table[i].Node.MAC == mac ){
+                objAdresses.table[i].Node.adr == publicKey;
+            }
+        }
+        var jsonAdresses = JSON.stringify(objAdresses);
+        fs.writeFileSync(fileAdresses, jsonAdresses, 'utf8');
+    }
+}
+
+function update_access_list(publicKey,mac,fileAccess){
+    var dataAccess=fs.readFileSync(fileAccess,'utf8');
+    var objAccess= {
+        table: []
+    };
+
+    if(dataAccess.length != 0 ){
+        var objAccess = JSON.parse(dataAccess);
+            
+        for(i=0;i<objAccess.table[0].Node.length;i++){
+            if(objAccess.table[0].Node[i].adr == mac) objAccess.table[0].Node[i].adr = publicKey;
+                for(k=0;k<objAccess.table[0].Node[i].accesslist.length;k++){
+                    if(objAccess.table[0].Node[i].accesslist[k].ressource) objAccess.table[0].Node[i].accesslist[k].ressource = publicKey; 
+                }
+        }
+        var jsonAccess = JSON.stringify(objAccess);
+        fs.writeFileSync(fileAccess, jsonAccess, 'utf8');   
+    }
 }
 
 /**
