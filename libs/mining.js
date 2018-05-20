@@ -92,11 +92,11 @@ Miner.prototype.generateHash = function(block) {
     //console.log(this.newBlock.nonce + '> ' + this.newBlock.hash);
 
     this.newBlock.nonce++;
-    if(this.newBlock.hash < this.newBlock.difficulty){/*
+    /*if(this.newBlock.hash < this.newBlock.difficulty){
         console.log('New Bloc' + this.newBlock.hash);
-           console.log(' Previous Bloc : '+this.newBlock.previousHash);*/
+           console.log(' Previous Bloc : '+this.newBlock.previousHash);
     }
-     this._success = ( this.newBlock.hash < this.newBlock.difficulty );
+     this._success = ( this.newBlock.hash < this.newBlock.difficulty );*/
 
     return this.newBlock.hash;
 };
@@ -107,11 +107,12 @@ Miner.prototype.isSuccess = function() {
 };
 
 Miner.prototype.getNewBlock = function() {
-    if (this._success === true) {
+   /* if (this._success === true) {
       //  this._fixDifficulty();
         return this.newBlock;
-    }
-    return null;
+    }*/
+    return this.newBlock;
+   // return null;
 };
 Miner.prototype.getPreviousBlock = function() {
    return this.previousBlock; 

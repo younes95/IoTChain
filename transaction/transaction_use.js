@@ -1,34 +1,36 @@
 /**
  *
- * Transaction type request
+ * Transaction type Use
  *
  */
 
 'use strict';
+
 var token = require('./token');
 var crypto = require("crypto");
 
-function TransactionRequest(transactionRequest) {
-	if (typeof transactionRequest === 'undefined') {
-		transactionRequest = {};
+function TransactionUse(transactionUse) {
+	if (typeof transactionUse === 'undefined') {
+		transactionUse = {};
 	}
-	token =new Token(transactionRequest.token)
-	this.hash = transactionRequest.hash ;
-    this.requested = transactionRequest.requested;
-    this.requester = transactionRequest.requester;
-    this.timestamp = transactionRequest.timestamp;
-   	this.action = transactionRequest.action ;
-   	this.token = token ;
+	
+	token =new Token(transactionUse.token)
+	this.hash = transactionUse.hash ;
+    this.requested = transactionUse.requested;
+    this.requester = transactionUse.requester;
+    this.timestamp = transactionUse.timestamp;
+   	this.action = transactionUse.action ;
+   	this.token = transactionUse.token ;
 }
 
-TransactionRequest.prototype.show= function(){
+TransactionUse.prototype.show= function(){
 	return 'Hash : '+this.hash+' Requested : '+ this.requested + ' Requester : '+this.requester+' Timestamp : '+this.timestamp+' Action : '+ this.action+' Token : '+this.token.show();
 };
-TransactionRequest.prototype.new= function(requested,requester,action,token){
+TransactionUse.prototype.new= function(requested,requester,timestamp,action,token){
 
     this.requested = requested;
     this.requester = requester;
-    this.timestamp = new Date().valueOf();
+    this.timestamp = timestamp;
    	this.action = action;
 	this.token = token;
 
@@ -40,7 +42,7 @@ TransactionRequest.prototype.new= function(requested,requester,action,token){
 	   	token : this.token.hash 
     };
     
-	var hash = crypto.createHmac('sha256', 'Transaction Request')
+	var hash = crypto.createHmac('sha256', 'Transaction Use')
                         .update( JSON.stringify(header) )
                         .digest('hex');
 
@@ -49,7 +51,7 @@ TransactionRequest.prototype.new= function(requested,requester,action,token){
 	return this.hash;
 };
 
-TransactionRequest.prototype.verify= function(hash,requested,requester,action,timestamp,token){
+TransactionUse.prototype.verify= function(hash,requested,requester,action,timestamp,token){
 
 	var header = {
 		requested : requested,
@@ -59,7 +61,7 @@ TransactionRequest.prototype.verify= function(hash,requested,requester,action,ti
 	   	token : token.hash 
     };
     
-	var hashValid = crypto.createHmac('sha256', 'Transaction Request')
+	var hashValid = crypto.createHmac('sha256', 'Transaction Use')
                         .update( JSON.stringify(header) )
                         .digest('hex');
 
@@ -67,4 +69,4 @@ TransactionRequest.prototype.verify= function(hash,requested,requester,action,ti
 	else return false;
 };
 
-module.exports = TransactionRequest;
+module.exports = TransactionUse;

@@ -48,6 +48,22 @@ function Block(block) {
     this._tree = [];
     this.numberMax = 4;
 }
+Block.prototype.new = function(hash,previousHash,timestamp,merkleRoot,difficulty,txs,nonce,no,tree,numberMax) {
+    this.hash = hash || '';
+    this.previousHash = previousHash || '';
+    this.timestamp = timestamp || new Date();
+    this.merkleRoot = merkleRoot || '0000000000000000000000000000000000000000000000000000000000000000';
+    this.difficulty = difficulty || '00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF';
+    this.txs = txs;
+    this.nonce = nonce || 0;
+    this.no = no || 0;
+    this._tree = tree;
+    this.numberMax = numberMax;
+};
+
+Block.prototype.getTransactions = function() {
+    return this.txs;
+};
 
 Block.prototype.setTransactions = function(txs) {
     this.txs = txs;
@@ -56,21 +72,22 @@ Block.prototype.setTransactions = function(txs) {
     this.merkleRoot = this._tree.level(0)[0];
 };
 Block.prototype.getNumberOfTransactions= function(){
-    var levels = this._tree.levels();
-    var nodes= this._tree.level(levels-1);
-    return nodes.length;
+
+    return this.txs.length;
 };
 
-Block.prototype.transactionsExist = function(txs) {
-    var levels = this._tree.levels();
-    var nodes= this._tree.level(levels-1);
-    var i=0;
-    
-    for(i=0;i<levels;i++) {
-        //console.log('Transaction #'+i+' : '+nodes[i]);
-        if (nodes[i] == txs) return true ;
+Block.prototype.transactionsExist = function(hash) {
+
+    if(this.txs.length != 0){
+        
+        for(i=0;i<this.txs.length;i++) {
+            //console.log('Transaction #'+i+' : '+nodes[i]);
+            if (this.txs[i].hash == hash) return true ;
+        }
     }
+
     return false;
+    
 };
 
 Block.prototype.getNumberMax = function(){

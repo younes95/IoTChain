@@ -1,1 +1,1 @@
-{"table":[{"Node":{"adr":"04be933d70f2916f75bd4133454d832976769a2f781cab5f84931b026b43c165584bbe7b62dc0a448489fea1c9e82970fb8ba06cb03a775399b1d9eb39b9ce6604","IP":"192.168.0.1","port":8001,"MAC":"MLKDOPZLDK","host":"localhost","role":"miner"}}]}
+{"table":[{"Node":{"adr":"04be933d70f2916f75bd4133454d832976769a2f781cab5f84931b026b43c165584bbe7b62dc0a448489fea1c9e82970fb8ba06cb03a775399b1d9eb39b9ce6604","IP":"127.0.0.1","port":8001,"MAC":"MLKDOPZLDK","host":"localhost","role":"miner"}}]}

@@ -136,6 +136,18 @@ Server.prototype.onData = function(payload) {
 
     if (typeof this._options.onmessage === 'function' && packet.message.type === RpcMessage.REQUESTACCESS) {
        return this._options.onmessage(payload); 
+    }
+
+    if (typeof this._options.onmessage === 'function' && packet.message.type === RpcMessage.RECEIVETRANSACTION) {
+       return this._options.onmessage(payload); 
+    }
+
+    if (typeof this._options.onmessage === 'function' && packet.message.type === RpcMessage.RESPONSEVALIDATIONTRANSACTION) {
+       return this._options.onmessage(payload); 
+    }
+
+    if (typeof this._options.onmessage === 'function' && packet.message.type === RpcMessage.INSERTRANSACTION) {
+       return this._options.onmessage(payload); 
     } 
 
     /*

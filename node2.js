@@ -10,10 +10,8 @@ var fs = require('fs');
 
 // Import transaction classes
 Transaction = require('./transaction/transaction');
-TransactionConfig = require('./transaction/transaction_config');
 TransactionRequest= require('./transaction/transaction_request');
-TransactionInfo = require('./transaction/transaction_info');
-TransactionAction = require('./transaction/transaction_action');
+TransactionUse = require('./transaction/transaction_use');
 Token = require('./transaction/token');
 
 // Import genesis block
@@ -614,8 +612,8 @@ function receiveNewNode(){
             var data=fs.readFileSync(file, 'utf8');
                         
             if(data.length != 0){
-                obj = JSON.parse(data);
-                lastHash=obj.table[obj.table.length-1].Block.hash;
+                objData = JSON.parse(data);
+                lastHash=obj.table[objData.table.length-1].Block.hash;
             }
 
             //Send request to synchronize
