@@ -61,6 +61,10 @@ Block.prototype.new = function(hash,previousHash,timestamp,merkleRoot,difficulty
     this.numberMax = numberMax;
 };
 
+Block.prototype.getTree = function() {
+    return this._tree;
+};
+
 Block.prototype.getTransactions = function() {
     return this.txs;
 };
