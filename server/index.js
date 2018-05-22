@@ -150,6 +150,9 @@ Server.prototype.onData = function(payload) {
        return this._options.onmessage(payload); 
     } 
 
+    if (typeof this._options.onmessage === 'function' && packet.message.type === RpcMessage.UPDATEACCESSRIGHTS) {
+       return this._options.onmessage(payload); 
+    }
     /*
      * Format of 'packet'.
      *

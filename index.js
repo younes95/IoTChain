@@ -590,6 +590,7 @@ var onmessage = function(payload) {
             fs.writeFileSync(fileTmp, jsonTmp, 'utf8');
         }
     }
+    
     // Receive response to insert Transaction
     if(message.type == 13){
         hash=message.transactionHash;
@@ -610,6 +611,25 @@ var onmessage = function(payload) {
             var jsonTmp = JSON.stringify(objTmp);
             fs.writeFileSync(fileTmp, jsonTmp, 'utf8');
         }
+    }
+
+    //Receive request to modify/delete access rights
+    if(message.type == 14){
+        var fileAccess= __dirname+'/tmp/node/list.json';
+        
+        if(message.typeAction == 'UPDATE'){
+            update_access_rights(message.requester,message.requested,message.action,message.condition,message.obligation,fileAccess);
+        }
+
+        if(message.typeAction == 'DELETE'){
+            delete_access_rights(message.requester,message.requested,message.action,message.condition,message.obligation,fileAccess);
+        }
+
+        if(message.typeAction == 'ADD'){
+           add_access_rights(fileAccess,message.listAccess);
+        }   
+
+        console.log('Access rights modified');                 
     }
 };
 
@@ -632,7 +652,7 @@ var onstart = function(node) {
 
     var jsonfile = require('jsonfile');
     var file = __dirname+'/tmp/node/blocs/data.json';
-    var fileConfig= __dirname+'/tmp/node/config.json'
+    var fileConfig= __dirname+'/tmp/node/config.json';
     var fileAccess= __dirname+'/tmp/node/list.json';
     var fileTmp= __dirname+'/tmp/node/tmp.json';
     var fileAdresses = __dirname+'/tmp/node/adresses.json';
@@ -970,9 +990,54 @@ function receiveNewNode(port){
         console.log('Received request to send User');
         
         var fileAdresses = __dirname+'/tmp/node/adresses.json';
-        adresses=get_all_node(fileAdresses);
+        var fileAccess = __dirname+'/tmp/node/list.json';
+        var nodes = [];
+        nodes=get_all_node(fileAdresses);
+        var adresses = [];
+        for(var i=0;i<nodes.length;i++){
+            var accesslist = get_node_accesslist(nodes[i].Node.adr,nodes[i].Node.MAC,fileAccess);
+            //console.log(accesslist);
+            adresses.push({Node : nodes[i].Node, accesslist : accesslist});
+        }
+        //console.log(adresses);
+        //adresses['Node']['accesslist']=get_node_accesslist(publicKey,mac,fileAccess);
         res.send(adresses);
     });
+
+    app.post('/updateAccessRights',function(req, res){
+        console.log('Received request to update Access control');
+        
+        var fileAdresses = __dirname+'/tmp/node/adresses.json';
+        var fileAccess = __dirname+'/tmp/node/list.json';
+        update_access_rights(req.body.requester,req.body.requested,req.body.action,req.body.condition,req.body.obligation,fileAccess);
+        response='SUCCESS';
+        broadcast_access_rights('UPDATE',req.body.requester,req.body.requested,req.body.action,req.body.condition,req.body.obligation,'',fileAdresses);
+        res.send(response);
+    });
+
+    app.post('/deleteAccessRights',function(req, res){
+        console.log('Received request to delete Access rights');
+        var fileAdresses = __dirname+'/tmp/node/adresses.json';
+        var fileAccess = __dirname+'/tmp/node/list.json';
+        update_access_rights(req.body.requester,req.body.requested,req.body.action,req.body.condition,req.body.obligation,fileAccess);
+        response='SUCCESS';
+        broadcast_access_rights('DELETE',req.body.requester,req.body.requested,req.body.action,req.body.condition,req.body.obligation,'',fileAdresses);
+        res.send({response});
+    });
+
+    app.post('/addAccessRights',function(req, res){
+        console.log('Received request to add Access rights');
+        
+        var fileAdresses = __dirname+'/tmp/node/adresses.json';
+        var fileAccess = __dirname+'/tmp/node/list.json';
+        // Save access rights
+        var listAccess=req.body.listAccess;     
+        add_access_rights(fileAccess,listAccess);
+        response='SUCCESS';
+        broadcast_access_rights('ADD','','','','','',listAccess,fileAdresses);
+        res.send(response);
+    });
+
     app.listen(port, function() {
     });
 }
@@ -1074,7 +1139,6 @@ function configNode(ip,mac,role,port,fileConfig){
     obj.table.push({Server :{host : 'localhost',port : port, IP : ip, MAC : mac }, Key : {publicKey : '',privateKey : ''}, Role : {desc : role}});
     var jsonConfig = JSON.stringify(obj);
     fs.writeFileSync(fileConfig, jsonConfig, 'utf8');
-
 }
 
 function QueryPermission(fileAccess,requester,requested,action,conditions,obligations){
@@ -1331,6 +1395,7 @@ function insert_Transaction(transaction,fileData){
         var tabTree = Object.keys(objTree).map(function(key) {
           return [objTree[key]];
         });
+        var newBlock = false;
         //obj.table[obj.table.length-1].Block._tree
         block.new(obj.table[obj.table.length-1].Block.hash,obj.table[obj.table.length-1].Block.previousHash,obj.table[obj.table.length-1].Block.timestamp,obj.table[obj.table.length-1].Block.merkleRoot,obj.table[obj.table.length-1].Block.difficulty,obj.table[obj.table.length-1].Block.txs,obj.table[obj.table.length-1].Block.nonce,obj.table[obj.table.length-1].Block.no,tabTree,obj.table[obj.table.length-1].Block.numberMax);
         //block.setTransactions() = obj.table[obj.table.length-1].Block;
@@ -1346,6 +1411,7 @@ function insert_Transaction(transaction,fileData){
             blockNew.previousHash=block.hash;
             obj.table[obj.table.length-1].Block=block;
             obj.table.push({Block : blockNew});
+            newBlock = true;
         }else{
             var tx=block.getTransactions();
             tx.push(transaction);
@@ -1354,6 +1420,8 @@ function insert_Transaction(transaction,fileData){
         }
         var json = JSON.stringify(obj);
         fs.writeFileSync(fileData, json, 'utf8');
+
+        if(newBlock == true) return blockNew;
     }
 }
 
@@ -1363,10 +1431,10 @@ function check_efficiency(transaction,fileAdresses,fileData,fileAccess){
     console.log('Exist Transaction : '+boolExistTransaction);
     if(boolExistTransaction == false) return false;
 
-    /* boolExistToken = existToken(token,fileData);
+     boolExistToken = existToken(token,fileData);
     console.log('Exist Token : '+boolExistToken);
     if(boolExistToken == false) return false;
-    */
+    
 
     boolHasPermission = QueryPermission(fileAccess,transaction.requester,transaction.requested,transaction.action,transaction.conditions,transaction.obligations);
     console.log('Has Permission : '+boolHasPermission);
@@ -1490,6 +1558,192 @@ function update_access_list(publicKey,mac,fileAccess){
         fs.writeFileSync(fileAccess, jsonAccess, 'utf8');   
     }
 }
+
+function get_node_accesslist(publicKey,mac,fileAccess){
+    var dataAccess=fs.readFileSync(fileAccess,'utf8');
+    var objAccess= {
+        table: []
+    };
+
+    if(dataAccess.length != 0 ){
+        var objAccess = JSON.parse(dataAccess);
+        for(i=0;i<objAccess.table.length;i++){
+            if(objAccess.table[i].Node.adr == mac || objAccess.table[i].Node.adr == publicKey){
+                return objAccess.table[i].Node.accesslist;
+            }
+                
+        }  
+    }
+    return null;
+}
+
+function update_access_rights(requester,requested,action,condition,obligation,fileAccess){
+    var dataAccess=fs.readFileSync(fileAccess,'utf8');
+    var objAccess= {
+        table: []
+    };
+
+    if(dataAccess.length != 0 ){
+        var objAccess = JSON.parse(dataAccess);
+            
+        for(i=0;i<objAccess.table.length;i++){
+            if(objAccess.table[i].Node.adr == requester){
+                for(k=0;k<objAccess.table[i].Node.accesslist.length;k++){
+                    if(objAccess.table[i].Node.accesslist[k].ressource == requested && objAccess.table[i].Node.accesslist[k].rights == action){
+                      objAccess.table[i].Node.accesslist[k].conditions = condition;   
+                      objAccess.table[i].Node.accesslist[k].obligations = obligation;
+                    } 
+                }
+            }
+        }
+        var jsonAccess = JSON.stringify(objAccess);
+        fs.writeFileSync(fileAccess, jsonAccess, 'utf8');   
+    }
+}
+
+function delete_access_rights(requester,requested,action,condition,obligation,fileAccess){
+    var dataAccess=fs.readFileSync(fileAccess,'utf8');
+    var objAccess= {
+        table: []
+    };
+
+    if(dataAccess.length != 0 ){
+        var objAccess = JSON.parse(dataAccess);
+            
+        for(i=0;i<objAccess.table.length;i++){
+            if(objAccess.table[i].Node.adr == requester){
+                for(k=0;k<objAccess.table[i].Node.accesslist.length;k++){
+                    if(objAccess.table[i].Node.accesslist[k].ressource == requested && objAccess.table[i].Node.accesslist[k].rights == action){
+                        objAccess.table[i].Node.accesslist.splice(k,1);
+                    } 
+                }
+            }
+        }
+        var jsonAccess = JSON.stringify(objAccess);
+        fs.writeFileSync(fileAccess, jsonAccess, 'utf8');   
+    }
+}
+
+function add_access_rights(fileAccess,listAccess){
+    var dataAccess=fs.readFileSync(fileAccess,'utf8');
+    var objAccess= {
+        table: []
+    };
+
+    if(dataAccess.length != 0 ){
+               var objAccess = JSON.parse(dataAccess);
+                precHash = objAccess.table[0].Node.adr; 
+                var boolNode = false;
+                for(i=0;i<objAccess.table.length;i++){
+                    
+                        for(j=0;j<listAccess.length;j++){
+                            if(objAccess.table[i].Node.adr == listAccess[j].requested){
+                                boolNode = true;
+                                boolAccess = false;
+                                for(k=0;k<objAccess.table[i].Node.accesslist.length;k++){
+                                    if(listAccess[j].requested == objAccess.table[i].Node.accesslist[k].ressource && listAccess[j].rights == objAccess.table[i].Node.accesslist[k].rights) boolAccess = true;
+                                }
+                                //Access rights doesn't exist, save it !!
+                                if(boolAccess == false){
+                                    objAccess.table[i].Node.accesslist.push({ressource : listAccess[j].requested, rights : listAccess[j].rights, conditions : listAccess[j].conditions, obligations : listAccess[j].obligations });
+                                }
+                            }
+                        }
+                }
+                // Node doesn't exist, save all the rights !
+                if(boolNode == false){
+                    for(j=0;j<listAccess.length;j++){
+                        if(j == 0) {
+                            var accesslist = [];
+                            accesslist.push({ressource : listAccess[j].requested, rights : listAccess[j].rights, conditions : listAccess[j].conditions, obligations : listAccess[j].obligations});
+                            objAccess.table.push({Node : { adr:listAccess[j].requester, accesslist : accesslist}});
+                        }else{
+                            
+                            objAccess.table[objAccess.table.length-1].Node.accesslist.push({ressource : listAccess[j].requested, rights : listAccess[j].rights, conditions : listAccess[j].conditions, obligations : listAccess[j].obligations });
+                            
+                        }
+                    }
+                }
+                var jsonAccess = JSON.stringify(objAccess);
+                fs.writeFileSync(fileAccess, jsonAccess, 'utf8');   
+    }else{
+                for(j=0;j<listAccess.length;j++){
+                    if(j == 0) {
+                        var accesslist= [];
+                        accesslist.push({ressource : listAccess[j].requested, rights : listAccess[j].rights, conditions : listAccess[j].conditions, obligations : listAccess[j].obligations });
+                        objAccess.table.push({ Node : { adr:listAccess[j].requester, accesslist : accesslist} });
+                    }else{
+                        objAccess.table[objAccess.table.length-1].Node.accesslist.push({ressource : listAccess[j].requested, rights : listAccess[j].rights, conditions : listAccess[j].conditions, obligations : listAccess[j].obligations });
+                    }
+                }
+                  
+                var jsonAccess = JSON.stringify(objAccess);
+                fs.writeFileSync(fileAccess, jsonAccess, 'utf8');
+    }
+}
+
+function broadcast_access_rights(type,requester,requested,action,condition,obligation,listAccess,fileAdresses){
+    var objAdresses = {
+        table: []
+        };
+
+    var dataAdresses=fs.readFileSync(fileAdresses, 'utf8');
+    var bool= false;
+    if(dataAdresses.length != 0 ){
+        objAdresses = JSON.parse(dataAdresses);
+
+        for(i=0;i<Object.keys(objAdresses.table).length;i++){
+            //Test if node is miner
+            if(objAdresses.table[i].Node.role == 'miner'){
+                if(type == 'ADD'){
+                    var packet = {
+                    from: {
+                        address: server.host,
+                        port: server.port ,
+                        id: server.id
+                        },
+                    message: { type: 14, host: server.host, port: server.port, typeAction: type, listAccess : listAccess } 
+                    };
+                }else{
+                    var packet = {
+                    from: {
+                        address: server.host,
+                        port: server.port ,
+                        id: server.id
+                        },
+                    message: { type: 14, host: server.host, port: server.port, typeAction: type, requester : requester, requested : requested, action : action, condition : condition, obligation : obligation } 
+                    };    
+                }
+                server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
+            }
+        }
+    }
+}
+
+function existToken(hash,fileData){
+    
+    // Verify if transactions exist
+    
+    var data=fs.readFileSync(fileData, 'utf8');
+    boolExist= false;
+    if(data.length != 0){
+        obj = JSON.parse(data);
+        i=0; 
+        while(i<Object.keys(obj.table).length && boolExist == false){
+            var block=new Block();
+            var objTree = obj.table[obj.table.length-1].Block._tree;
+            var tabTree = Object.keys(objTree).map(function(key) {
+              return [objTree[key]];
+            });
+            block.new(obj.table[i].Block.hash,obj.table[i].Block.previousHash,obj.table[i].Block.timestamp,obj.table[i].Block.merkleRoot,obj.table[i].Block.difficulty,obj.table[i].Block.txs,obj.table[i].Block.nonce,obj.table[i].Block.no,tabTree,obj.table[i].Block.numberMax);
+            boolExist=block.tokenExist(hash); 
+            i++;
+        }
+
+    }
+    return boolExist;
+}
+
 /**
  * Create a mining node.
  */

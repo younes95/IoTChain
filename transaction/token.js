@@ -60,4 +60,11 @@ Token.prototype.verify= function(hash,action,validity,timestamp){
     else return false;
 }
 
+Token.prototype.validity= function(timestamp){
+	if(timestamp-this.timestamp<this.validity) return true;
+    else return false;
+}
+
+
+
 module.exports = Token;

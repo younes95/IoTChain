@@ -90,6 +90,20 @@ Block.prototype.transactionsExist = function(hash) {
     
 };
 
+Block.prototype.transactionsExist = function(hash) {
+
+    if(this.txs.length != 0){
+        
+        for(i=0;i<this.txs.length;i++) {
+            //console.log('Transaction #'+i+' : '+nodes[i]);
+            if (this.txs[i].token.hash == hash) return true ;
+        }
+    }
+
+    return false;
+    
+};
+
 Block.prototype.getNumberMax = function(){
     return this.numberMax;
 }
