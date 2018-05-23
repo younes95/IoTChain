@@ -83,7 +83,6 @@ Block.prototype.getNumberOfTransactions= function(){
 Block.prototype.transactionsExist = function(hash) {
 
     if(this.txs.length != 0){
-        
         for(i=0;i<this.txs.length;i++) {
             //console.log('Transaction #'+i+' : '+nodes[i]);
             if (this.txs[i].hash == hash) return true ;
@@ -94,7 +93,7 @@ Block.prototype.transactionsExist = function(hash) {
     
 };
 
-Block.prototype.transactionsExist = function(hash) {
+Block.prototype.tokenExist = function(hash) {
 
     if(this.txs.length != 0){
         
