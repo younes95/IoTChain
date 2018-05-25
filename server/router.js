@@ -47,10 +47,16 @@ if (typeof(module) != "undefined" && typeof(exports) != "undefined")
  */
 
 function WebsocketRouter(options) {
+
+  var fs = require('fs'); 
+  var file = __dirname+'/../config.json';
+  var data=fs.readFileSync(file, 'utf8');
+  var obj = JSON.parse(data);
+
   options = options || {};
   this.clientsPath = [];
-  this.host = options.host ? options.host : 'localhost';
-  this.port = options.port ? options.port : 8000;
+  this.host = options.host ? options.host : obj.table[0].Server.ip;
+  this.port = options.port ? options.port : obj.table[0].Server.port;
 }
 
 /**

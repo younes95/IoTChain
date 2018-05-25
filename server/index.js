@@ -75,8 +75,14 @@ var wsHandlers = {
  * @param {Object} Chord server
  */
 function Server() {
-    this.port = process.env.PORT || 8000;
-    this.host = process.env.HOST || 'localhost';
+    
+    var fs = require('fs'); 
+    var file = __dirname+'/../config.json';
+    var data=fs.readFileSync(file, 'utf8');
+    var obj = JSON.parse(data);
+
+    this.port = process.env.PORT || obj.table[0].Server.port;
+    this.host = process.env.HOST || obj.table[0].Server.ip;
 
     // initliaze the public attributes
     this.nodes = {};
@@ -157,6 +163,11 @@ Server.prototype.onData = function(payload) {
     if (typeof this._options.onmessage === 'function' && packet.message.type === RpcMessage.SIGNEDMESSAGE) {
        return this._options.onmessage(payload); 
     }
+
+    if (typeof this._options.onmessage === 'function' && packet.message.type === RpcMessage.ELECTEDMINER) {
+       return this._options.onmessage(payload); 
+    }
+   
     /*
      * Format of 'packet'.
      *
