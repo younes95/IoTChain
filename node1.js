@@ -4,6 +4,18 @@ var fs = require('fs');
 var shortid = require('shortid');
 var crypto = require("crypto");
 var eccrypto = require("eccrypto");
+var elliptic = require("elliptic");
+var EC = elliptic.ec;
+const BN = require('bn.js');
+const asn =require('asn1.js');
+
+const EcdsaDerSig = asn.define('ECPrivateKey', function() {
+    return this.seq().obj(
+        this.key('r').int(),
+        this.key('s').int()
+    );
+});
+
 // Import genesis block
 var block = require('./libs/genesis');
 var Block = require('./libs/block');
@@ -655,17 +667,13 @@ var onmessage = function(payload) {
 
     // Test signature
     if(message.type == 15){
-        message = message.message;
-        
-        signedMessage = message.signedMessage;
-        publicKey = message.publicKey
-        console.log(signedMessage);
-        var sig = new TextEncoder("utf-8").encode(signedMessage);
-        eccrypto.verify(publicKey, message,sig).then(function() {
-            console.log("Signature is OK");
-        }).catch(function() {
-            console.log("Signature is BAD");
-        });
+            var shaMsg = new Buffer(message.shaMsg,'hex');
+            var publicKey = new Buffer(message.publicKey,'hex');
+            var signature = new Buffer(message.signature,'hex');
+            var ec = new EC("secp256k1");
+            const asn1signature = concatSigToAsn1Sig(signature);
+            var isValid = ec.verify(shaMsg, asn1signature, publicKey)
+            console.log(isValid);
     }
 
     // Receive turn to become the elected miner
@@ -692,6 +700,10 @@ var onmessage = function(payload) {
         }, 15000);
     } 
 };
+
+
+  
+
 
 var onstart = function(node) {
 
@@ -725,7 +737,7 @@ var onstart = function(node) {
         };
         var role= objConfig.table[0].Role;
     }
-    
+   /* 
     var fileAccess=__dirname+'/tmp/node1/list.json';
     var dataAccess=fs.readFileSync(fileAccess,'utf8');
     
@@ -733,12 +745,12 @@ var onstart = function(node) {
     var lastHash=null;
     var data=fs.readFileSync(file, 'utf8');
                 
-   /* if(data.length != 0){
+   *//* if(data.length != 0){
         obj = JSON.parse(data);
         lastHash=obj.table[obj.table.length-1].Block.hash;
     }*/
 
-
+*/
        
 
         var fileAccess= __dirname+'/tmp/node1/list.json';
@@ -752,26 +764,6 @@ var onstart = function(node) {
                 switch_elected_miner(fileMiner,fileConfig,fileAdresses);
             }, 15000);
        
-   /* request = {
-        requester : key.publicKey,
-        requested : '1',
-        action : 'ACCESS',
-        conditions : '',
-        obligations : '',
-    }
-
-    // Send request to execute Action
-    var packet = {
-            from: {
-                address: 'localhost',
-                port: 8001,
-                id: server.id
-                },
-            message: { type: 8, host: server.host, port: server.port, publicKey: key.publicKey, request : request } 
-        };
-                        
-        server.sendMessage({address: '127.0.0.1', port: 8000},packet);*/
-
     receiveNewNode(9001);
 };
 
@@ -1957,6 +1949,20 @@ function toStringHex(string){
      return myBuffer;
 }
 
+
+function asn1SigSigToConcatSig(asn1SigBuffer) {
+    return Buffer.concat([
+        asn1SigBuffer.r.toArrayLike(Buffer, 'be', 32),
+        asn1SigBuffer.s.toArrayLike(Buffer, 'be', 32)
+    ]);
+}
+
+function concatSigToAsn1Sig(concatSigBuffer) {
+    const r = new BN(concatSigBuffer.slice(0, 32).toString('hex'), 16, 'be');
+    const s = new BN(concatSigBuffer.slice(32).toString('hex'), 16, 'be');
+    return EcdsaDerSig.encode({r, s}, 'der');
+}
+  
 
 /**
  * Create a new miner node and join a peer node.

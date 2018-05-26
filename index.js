@@ -4,6 +4,9 @@ var fs = require('fs');
 var shortid = require('shortid');
 var crypto = require("crypto");
 var eccrypto = require("eccrypto");
+var elliptic = require("elliptic");
+var EC = elliptic.ec;
+
 // Import genesis block
 var block = require('./libs/genesis');
 var Block = require('./libs/block');
@@ -15,6 +18,15 @@ var RPCMessage = require('./server/message');
 var textEncoding = require('text-encoding'); 
 var TextDecoder = textEncoding.TextDecoder;
 var TextEncoder = textEncoding.TextEncoder;
+const BN = require('bn.js');
+const asn =require('asn1.js');
+
+const EcdsaDerSig = asn.define('ECPrivateKey', function() {
+    return this.seq().obj(
+        this.key('r').int(),
+        this.key('s').int()
+    );
+});
 
 // Import transaction classes
 Transaction = require('./transaction/transaction');
@@ -558,11 +570,13 @@ var onmessage = function(payload) {
         update_adresses(publicKey,mac,fileAdresses);
 
         data = get_node_info_by_adr(publicKey,fileAdresses);
+        console.log(data.table[0].role);
         if(data.table[0].role == 'miner'){
 
             var dataMiner=fs.readFileSync(fileMiner,'utf8');
-            
+            console.log(dataMiner.length);
             if(dataMiner.length != 0 ){
+                console.log('heere to insert ! ');
                 var objMiner = JSON.parse(dataMiner);
                 objMiner.table[0].tabAdr.push(publicKey);
                 var jsonMiner = JSON.stringify(objMiner);
@@ -655,25 +669,21 @@ var onmessage = function(payload) {
 
     // Test signature
     if(message.type == 15){
-        message = message.message;
-        
-        signedMessage = message.signedMessage;
-        publicKey = message.publicKey
-        console.log(signedMessage);
-        var sig = new TextEncoder("utf-8").encode(signedMessage);
-        eccrypto.verify(publicKey, message,sig).then(function() {
-            console.log("Signature is OK");
-        }).catch(function() {
-            console.log("Signature is BAD");
-        });
+            var shaMsg = new Buffer(message.shaMsg,'hex');
+            var publicKey = new Buffer(message.publicKey,'hex');
+            var signature = new Buffer(message.signature,'hex');
+            var ec = new EC("secp256k1");
+            const asn1signature = concatSigToAsn1Sig(signature);
+            var isValid = ec.verify(shaMsg, asn1signature, publicKey)
+            console.log(isValid);
     }
+
 
     // Receive turn to become the elected miner
     if(message.type == 16){
         fileMiner = __dirname+'/tmp/node/miner.json';
         fileConfig = __dirname+'/tmp/node/config.json';
         fileAdresses = __dirname+'/tmp/node/adresses.json';
-        console.log('receive turn');
         var dataMiner=fs.readFileSync(fileMiner,'utf8');
         if(dataMiner.length != 0 ){
             var objMiner = JSON.parse(dataMiner);
@@ -692,6 +702,7 @@ var onmessage = function(payload) {
         }, 15000);
     }   
 };
+
 
 var onstart = function(node) {
     
@@ -826,30 +837,25 @@ var onstart = function(node) {
             }      */
 
 
-            /*var str = "message to sign";
-            // Always hash you message to sign!
-            var message = crypto.createHash("sha256").update(str).digest();
+            var str = "message to sign";
             var privateKey = crypto.randomBytes(32);
             var publicKey = eccrypto.getPublic(privateKey);
-            var fileS = __dirname+'/tmp/node/sign.json';
-
-            eccrypto.sign(privateKey, message).then(function(sig) {
-                var sigMess = new TextDecoder("utf-8").decode(sig);
-                
-                //console.log(Object.prototype.toString.call(sig))
-                nodeInfo=get_node_info(fileConfig); 
+            var ec = new EC("secp256k1");
+            var shaMsg = crypto.createHash("sha256").update(str).digest();
+            var mySign = ec.sign(shaMsg, privateKey, {canonical: true});
+            var signature = asn1SigSigToConcatSig(mySign);
+            nodeInfo=get_node_info(fileConfig); 
                 var packet = {
                         from: {
                             address: nodeInfo.Server.IP,
                             port: nodeInfo.Server.port,
                             id: server.id
                         },
-                    message: { type: 15, host: nodeInfo.Server.IP, port: nodeInfo.Server.port} 
+                    message: { type: 15, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey : publicKey, shaMsg : shaMsg,  signature : signature} 
                 };
-                server.sendMessage({address: '192.168.1.25', port: 8000},packet);
-            });
-    */
-
+                server.sendMessage({address: '127.0.0.1', port: 8001},packet);
+            
+    
     /*var fileMiner= __dirname+'/tmp/node/miner.json';
     var dataMiner=fs.readFileSync(fileMiner, 'utf8');
         if(data.length == 0){
@@ -860,17 +866,7 @@ var onstart = function(node) {
 
     receiveNewNode(9000);
 
-       
-
-
-    /*eccrypto.sign(privateKey, msg).then(function(sig) {
-      console.log("Signature in DER format:", toHexString(sig));
-      eccrypto.verify(publicKey, msg, sig).then(function() {
-        console.log("Signature is OK");
-      }).catch(function() {
-        console.log("Signature is BAD");
-      });
-    });*/              
+                
 };
 
 function receiveNewNode(port){
@@ -2037,6 +2033,18 @@ function toStringHex(string){
      return myBuffer;
 }
 
+function asn1SigSigToConcatSig(asn1SigBuffer) {
+    return Buffer.concat([
+        asn1SigBuffer.r.toArrayLike(Buffer, 'be', 32),
+        asn1SigBuffer.s.toArrayLike(Buffer, 'be', 32)
+    ]);
+}
+
+function concatSigToAsn1Sig(concatSigBuffer) {
+    const r = new BN(concatSigBuffer.slice(0, 32).toString('hex'), 16, 'be');
+    const s = new BN(concatSigBuffer.slice(32).toString('hex'), 16, 'be');
+    return EcdsaDerSig.encode({r, s}, 'der');
+}
 
 /**
  * Create a mining node.

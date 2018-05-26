@@ -1,1 +1,1 @@
-{"table":[{"Server":{"host":"localhost","port":"8000","IP":"192.168.0.3","MAC":"RESSOURCE1"},"Key":{"publicKey":"","privateKey":""},"Role":{"desc":"ressource"}}]}
+{"table":[{"Server":{"host":"localhost","port":"8000","IP":"127.0.0.1","MAC":"MAC-Miner-1"},"Key":{"publicKey":"0498e1838292569162bbe522e11cf6203f9398d56ff22bf28e7f796d4fb7acf81c7772debc3b1b57fddac8e6d8d277cb2da11146a47c1a4a69777745e4fefb4b3e","privateKey":"6ebb3283c4dc7da613941ddb295c1f2574e44833327bc8f5ff0da3eea262fa04"},"Role":{"desc":"miner"}}]}
