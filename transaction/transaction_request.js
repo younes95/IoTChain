@@ -32,13 +32,24 @@ TransactionRequest.prototype.new= function(requested,requester,action,token){
    	this.action = action;
 	this.token = token;
 
-	var header = {
+	if(this.token != null){
+		var header = {
 		requested : this.requested,
 	    requester : this.requester,
 	    timestamp : this.timestamp,
 	   	action : this.action ,
 	   	token : this.token.hash 
-    };
+    	};	
+	}else{
+		var header = {
+		requested : this.requested,
+	    requester : this.requester,
+	    timestamp : this.timestamp,
+	   	action : this.action ,
+	   	};
+	}
+
+	
     
 	var hash = crypto.createHmac('sha256', 'Transaction Request')
                         .update( JSON.stringify(header) )
@@ -51,14 +62,23 @@ TransactionRequest.prototype.new= function(requested,requester,action,token){
 
 TransactionRequest.prototype.verify= function(hash,requested,requester,action,timestamp,token){
 
-	var header = {
+	if(token != null){
+		var header = {
 		requested : requested,
 	    requester : requester,
 	    timestamp : timestamp,
 	   	action : action ,
 	   	token : token.hash 
-    };
-    
+    	};	
+	}else{
+		var header = {
+		requested : requested,
+	    requester : requester,
+	    timestamp : timestamp,
+	   	action : action ,
+	   	};
+	}
+
 	var hashValid = crypto.createHmac('sha256', 'Transaction Request')
                         .update( JSON.stringify(header) )
                         .digest('hex');

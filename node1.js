@@ -329,13 +329,24 @@ var onmessage = function(payload) {
         var fileTmp = __dirname+'/tmp/node1/tmp.json';
         var fileMiner = __dirname+'/tmp/node1/miner.json';
         
+        var shaMsg = crypto.createHash("sha256").update(JSON.stringify(message.request)).digest();
+        var publicKey = new Buffer(message.publicKey,'hex');
+        var signature = new Buffer(message.signature,'hex');
+        var ec = new EC("secp256k1");
+        const asn1signature = concatSigToAsn1Sig(signature);
+        var isValid = ec.verify(shaMsg, asn1signature, publicKey);
+
         var nodeInfo=get_node_info(fileConfig);
         boolAccess=QueryPermission(fileAccess,fileAdresses,request.requester,request.requested,request.action,request.conditions,request.obligations);
         
-        if(boolAccess == true && minerTurn(fileMiner) == true){
+        if(minerTurn(fileMiner) == true){
             var transaction_request = new TransactionRequest();
-            var token = new Token();
-            token.new(request.action,3600);
+            if(boolAccess == true){
+                var token = new Token();
+                token.new(request.action,3600);
+            }else{
+                var token=null;
+            }
             transaction_request.new(request.requested,request.requester,request.action,token);  
             tmp = {
                 Transaction : transaction_request,
@@ -356,7 +367,9 @@ var onmessage = function(payload) {
             objTmp.table.push(tmp); 
             var jsonTmp = JSON.stringify(objTmp);
             fs.writeFileSync(fileTmp, jsonTmp, 'utf8');
-            console.log('Has access, broadcast to miner to validate transaction : '+transaction_request.hash);
+            if(boolAccess == true){
+                console.log('Has access, broadcast to miner to validate transaction : '+transaction_request.hash);
+            }
             broadcast_transaction(fileAdresses,transaction_request,'request',get_publicKey_node(fileConfig),fileConfig);
           //  console.log(tmp);
         }
@@ -368,6 +381,16 @@ var onmessage = function(payload) {
     //Receiving response (BC access list and addresses) and generate keypair
     if(message.type == 9){
         console.log('received Blockchain');
+
+        var str = message.response+''+JSON.stringify(message.blocs)+''+JSON.stringify(message.adresses)+''+JSON.stringify(message.accesslist);
+        var shaMsg = crypto.createHash("sha256").update(str).digest();
+        var publicKey = new Buffer(message.publicKey,'hex');
+        var signature = new Buffer(message.signature,'hex');
+        var ec = new EC("secp256k1");
+        const asn1signature = concatSigToAsn1Sig(signature);
+        var isValid = ec.verify(shaMsg, asn1signature, publicKey);
+        console.log(isValid);
+
         var file = __dirname + '/tmp/node1/blocs/data.json';
         var fileAdresses = __dirname + '/tmp/node1/adresses.json';
         var fileConfig = __dirname + '/tmp/node1/config.json';
@@ -402,15 +425,24 @@ var onmessage = function(payload) {
             fs.writeFileSync(file, json, 'utf8');
         }else{
             obj = JSON.parse(data);
-            objReceived=JSON.parse(blocks);
+            objReceived=blocks;
             var i=0;
 
             for(i=0;i<objReceived.table.length;i++){
-                obj.table.push({Block : objReceived.table[i].Block});
+                bool = false;
+                for(j=0;j<obj.table.length;j++){
+                    if(obj.table[j].Block.hash == objReceived.table[i].Block.hash){
+                        bool = true;
+                    }
+                }
+                if(bool = false){
+                    obj.table.push({Block : objReceived.table[i].Block});   
+                }
             }
            
             var json = JSON.stringify(obj);
             fs.writeFileSync(file, json, 'utf8'); 
+        
         }
 
         // Save the addresses
@@ -517,6 +549,13 @@ var onmessage = function(payload) {
     if(message.type == 10){
         transaction=message.transaction;
 
+        var shaMsg = crypto.createHash("sha256").update(JSON.stringify(transaction)).digest();
+        var publicKey = new Buffer(message.publicKey,'hex');
+        var signature = new Buffer(message.signature,'hex');
+        var ec = new EC("secp256k1");
+        const asn1signature = concatSigToAsn1Sig(signature);
+        var isValid = ec.verify(shaMsg, asn1signature, publicKey);
+        
         var fileAccess = __dirname+'/tmp/node1/list.json';
         var fileData = __dirname+'/tmp/node1/blocs/data.json';
         var fileAdresses = __dirname+'/tmp/node1/adresses.json';
@@ -559,26 +598,33 @@ var onmessage = function(payload) {
     // Receiving publicKey 
     if(message.type == 11){
         console.log('Receiving publicKey');
+        var keyPublic= message.publicKey;
+        var shaMsg = new Buffer(message.shaMsg,'hex');
+        var publicKey = new Buffer(message.publicKey,'hex');
+        var signature = new Buffer(message.signature,'hex');
+        var ec = new EC("secp256k1");
+        const asn1signature = concatSigToAsn1Sig(signature);
+        var isValid = ec.verify(shaMsg, asn1signature, publicKey)
+        console.log(isValid);
 
         var fileAdresses = __dirname + '/tmp/node1/adresses.json';
         var fileAccess = __dirname + '/tmp/node1/list.json';
         var fileMiner = __dirname+'/tmp/node1/miner.json';
         
-        publicKey = message.publicKey;
         mac = message.mac;
         //Update access list
-        update_access_list(publicKey,mac,fileAccess);
+        update_access_list(keyPublic,mac,fileAccess);
         //Update adresses list
-        update_adresses(publicKey,mac,fileAdresses);
-
-        data = get_node_info_by_adr(publicKey,fileAdresses);
+        update_adresses(keyPublic,mac,fileAdresses);
+        data = get_node_info_by_adr(keyPublic,fileAdresses);
+        
         if(data.table[0].role == 'miner'){
 
             var dataMiner=fs.readFileSync(fileMiner,'utf8');
             
             if(dataMiner.length != 0 ){
                 var objMiner = JSON.parse(dataMiner);
-                objMiner.table[0].tabAdr.push(publicKey);
+                objMiner.table[0].tabAdr.push(keyPublic);
                 var jsonMiner = JSON.stringify(objMiner);
                 fs.writeFileSync(fileMiner, jsonMiner, 'utf8');
             }
@@ -628,6 +674,16 @@ var onmessage = function(payload) {
     // Receiving request to insert Transaction
     if(message.type == 13){
         hash=message.transactionHash;
+
+        hash=message.transactionHash;
+        var str = message.response+''+JSON.stringify(message.block)+''+message.transactionHash;
+        var shaMsg = crypto.createHash("sha256").update(str).digest();
+        var publicKey = new Buffer(message.publicKey,'hex');
+        var signature = new Buffer(message.signature,'hex');
+        var ec = new EC("secp256k1");
+        const asn1signature = concatSigToAsn1Sig(signature);
+        var isValid = ec.verify(shaMsg, asn1signature, publicKey);
+
         var fileTmp = __dirname+'/tmp/node1/tmp.json';
         var fileData = __dirname+'/tmp/node1/blocs/data.json';
         var dataTmp=fs.readFileSync(fileTmp, 'utf8');
@@ -653,15 +709,39 @@ var onmessage = function(payload) {
         var fileAccess= __dirname+'/tmp/node1/list.json';
         
         if(message.typeAction == 'UPDATE'){
+            var str = message.typeAction+''+message.requester+''+message.requested+''+message.action+''+message.condition+''+message.obligation+''+message.trust;
+            var shaMsg = crypto.createHash("sha256").update(str).digest();
+            var publicKey = new Buffer(message.publicKey,'hex');
+            var signature = new Buffer(message.signature,'hex');
+            var ec = new EC("secp256k1");
+            const asn1signature = concatSigToAsn1Sig(signature);
+            var isValid = ec.verify(shaMsg, asn1signature, publicKey);
+            
             update_access_rights(message.requester,message.requested,message.action,message.condition,message.obligation,message.trust,fileAccess);
         }
 
         if(message.typeAction == 'DELETE'){
+            var str = message.typeAction+''+message.requester+''+message.requested+''+message.action+''+message.condition+''+message.obligation+''+message.trust;
+            var shaMsg = crypto.createHash("sha256").update(str).digest();
+            var publicKey = new Buffer(message.publicKey,'hex');
+            var signature = new Buffer(message.signature,'hex');
+            var ec = new EC("secp256k1");
+            const asn1signature = concatSigToAsn1Sig(signature);
+            var isValid = ec.verify(shaMsg, asn1signature, publicKey);
+            
             delete_access_rights(message.requester,message.requested,message.action,message.condition,message.obligation,fileAccess);
         }
 
         if(message.typeAction == 'ADD'){
-           add_access_rights(fileAccess,message.listAccess);
+            var str = message.typeAction+''+JSON.stringify(message.listAccess);
+            var shaMsg = crypto.createHash("sha256").update(str).digest();
+            var publicKey = new Buffer(message.publicKey,'hex');
+            var signature = new Buffer(message.signature,'hex');
+            var ec = new EC("secp256k1");
+            const asn1signature = concatSigToAsn1Sig(signature);
+            var isValid = ec.verify(shaMsg, asn1signature, publicKey);
+            
+            add_access_rights(fileAccess,message.listAccess);
         }   
 
         console.log('Access rights modified');                 
@@ -680,6 +760,14 @@ var onmessage = function(payload) {
 
     // Receive turn to become the elected miner
     if(message.type == 16){
+
+        var shaMsg = new Buffer(message.shaMsg,'hex');
+        var publicKey = new Buffer(message.publicKey,'hex');
+        var signature = new Buffer(message.signature,'hex');
+        var ec = new EC("secp256k1");
+        const asn1signature = concatSigToAsn1Sig(signature);
+        var isValid = ec.verify(shaMsg, asn1signature, publicKey);
+
         fileMiner = __dirname+'/tmp/node1/miner.json';
         fileConfig = __dirname+'/tmp/node1/config.json';
         fileAdresses = __dirname+'/tmp/node1/adresses.json';
@@ -703,10 +791,6 @@ var onmessage = function(payload) {
         }, 15000);
     } 
 };
-
-
-  
-
 
 var onstart = function(node) {
 
@@ -849,6 +933,15 @@ function receiveNewNode(port){
                     var objAccess='';
                 }
                 var nodeInfo=get_node_info(fileConfig);
+
+                var str = response+''+JSON.stringify(obj)+''+JSON.stringify(objAdresses)+''+JSON.stringify(objAccess);
+                var keyPublic =  new Buffer(nodeInfo.Key.publicKey,'hex');;
+                var privateKey = new Buffer(nodeInfo.Key.privateKey,'hex');
+                var ec = new EC("secp256k1");
+                var shaMsg = crypto.createHash("sha256").update(str).digest();
+                var mySign = ec.sign(shaMsg, privateKey, {canonical: true});
+                var signature = asn1SigSigToConcatSig(mySign);
+
                 // Send to the node addresses, access list and BC
                 var packet = {
                     from: {
@@ -1114,13 +1207,22 @@ function switch_elected_miner(fileMiner,fileConfig,fileAdresses){
                 nodeInfoReceiver = get_node_info_by_adr(objMiner.table[0].tabAdr[0],fileAdresses);
                 var jsonMiner = JSON.stringify(objMiner);
                 fs.writeFileSync(fileMiner, jsonMiner, 'utf8');
+
+                var str = JSON.stringify(objMiner.table[0].tabAdr);
+                var publicKey = new Buffer(nodeInfoSender.Key.publicKey,'hex');
+                var privateKey = new Buffer(nodeInfoSender.Key.privateKey,'hex');
+                var ec = new EC("secp256k1");
+                var shaMsg = crypto.createHash("sha256").update(str).digest();
+                var mySign = ec.sign(shaMsg, privateKey, {canonical: true});
+                var signature = asn1SigSigToConcatSig(mySign);
+
                 var packet = {
                     from: {
                         address: nodeInfoSender.Server.IP,
                         port: nodeInfoSender.Server.port,
                         id: server.id
                     },
-                message: { type: 16, host: nodeInfoSender.Server.IP, port: nodeInfoSender.Server.port, tabAdr : objMiner.table[0].tabAdr} 
+                message: { type: 16, host: nodeInfoSender.Server.IP, port: nodeInfoSender.Server.port, tabAdr : objMiner.table[0].tabAdr, publicKey: publicKey, shaMsg: shaMsg, signature: signature} 
                 };
                 server.sendMessage({address: nodeInfoReceiver.table[0].ip, port: nodeInfoReceiver.table[0].port},packet);
             }
@@ -1363,17 +1465,25 @@ function broadcast_transaction(fileAdresses,transaction,type,publicKey,fileConfi
         objAdresses = JSON.parse(dataAdresses);
 
         for(i=0;i<Object.keys(objAdresses.table).length;i++){
-
+            nodeInfo = get_node_info(fileConfig);
+            var str = JSON.stringify(transaction);
+            var keyPublic =  new Buffer(nodeInfo.Key.publicKey,'hex');;
+            var privateKey = new Buffer(nodeInfo.Key.privateKey,'hex');
+            var ec = new EC("secp256k1");
+            var shaMsg = crypto.createHash("sha256").update(str).digest();
+            var mySign = ec.sign(shaMsg, privateKey, {canonical: true});
+            var signature = asn1SigSigToConcatSig(mySign);
+           
             //Test if node is miner
             if(objAdresses.table[i].Node.role == 'miner' && objAdresses.table[i].Node.adr != publicKey){
-                nodeInfo = get_node_info(fileConfig);
+                
                 var packet = {
                     from: {
                         address: nodeInfo.Server.IP,
                         port: nodeInfo.Server.port,
                         id: server.id
                         },
-                    message: { type: 10, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: publicKey, transaction : transaction, typeTransaction : type } 
+                    message: { type: 10, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: nodeInfo.Key.publicKey, transaction : transaction, typeTransaction : type, shaMsg: shaMsg, signature : signature } 
                 };
                 server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
             }
@@ -1395,13 +1505,22 @@ function broadcast_response(fileAdresses,transactionHash,publicKey,response,file
             //Test if node is miner
             if(objAdresses.table[i].Node.role == 'miner' && objAdresses.table[i].Node.adr != publicKey){
                 nodeInfo = get_node_info(fileConfig);
+
+                var str = response+''+JSON.stringify(block)+''+transactionHash;
+                var keyPublic =  new Buffer(nodeInfo.Key.publicKey,'hex');;
+                var privateKey = new Buffer(nodeInfo.Key.privateKey,'hex');
+                var ec = new EC("secp256k1");
+                var shaMsg = crypto.createHash("sha256").update(str).digest();
+                var mySign = ec.sign(shaMsg, privateKey, {canonical: true});
+                var signature = asn1SigSigToConcatSig(mySign);
+
                 var packet = {
                     from: {
                         address: nodeInfo.Server.IP,
                         port: nodeInfo.Server.port,
                         id: server.id
                         },
-                    message: { type: 13, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: publicKey, transactionHash : transactionHash, response : response, block : block } 
+                    message: { type: 13, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: nodeInfo.Key.publicKey, transactionHash : transactionHash, response : response, block : block, shaMsg : shaMsg, signature : signature } 
                 };
                 server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
             }
@@ -1421,15 +1540,24 @@ function broadcast_request(fileAdresses,publicKey,request,fileConfig){
 
         for(i=0;i<Object.keys(objAdresses.table).length;i++){
             //Test if node is miner
-            if(objAdresses.table[i].Node.role == 'miner' && objAdresses.table[i].Node.adr != publicKey){
+            if(objAdresses.table[i].Node.role == 'miner'){
                 nodeInfo = get_node_info(fileConfig);
+
+                var str = JSON.stringify(request);
+                var keyPublic =  new Buffer(nodeInfo.Key.publicKey,'hex');
+                var privateKey = new Buffer(nodeInfo.Key.privateKey,'hex');
+                var ec = new EC("secp256k1");
+                var shaMsg = crypto.createHash("sha256").update(str).digest();
+                var mySign = ec.sign(shaMsg, privateKey, {canonical: true});
+                var signature = asn1SigSigToConcatSig(mySign);
+
                 var packet = {
                     from: {
                         address: nodeInfo.Server.IP,
                         port: nodeInfo.Server.port,
                         id: server.id
                         },
-                    message: { type: 8, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: get_publicKey_node(fileConfig), request : request } 
+                    message: { type: 8, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: get_publicKey_node(fileConfig), request : request, shaMsg : shaMsg, signature: signature } 
                 };
                 server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
             }
@@ -1464,10 +1592,11 @@ function verify_transaction_request(transaction,fileAccess,fileAdresses,fileData
     var token=new Token();
     var transaction_request= new TransactionRequest();
 
-    var boolToken=token.verify(transaction.token.hash,transaction.token.action,transaction.token.validity,transaction.token.timestamp);
-     console.log('Bool Token : '+boolToken);
-    if(boolToken == false) return false;
-   
+    if(transaction.token != null){
+        var boolToken=token.verify(transaction.token.hash,transaction.token.action,transaction.token.validity,transaction.token.timestamp);
+        console.log('Bool Token : '+boolToken);
+        if(boolToken == false) return false;    
+    }
     
     var boolTransaction=transaction_request.verify(transaction.hash,transaction.requested,transaction.requester,transaction.action,transaction.timestamp,transaction.token);  
     console.log('Bool Transaction : '+boolTransaction);
@@ -1479,10 +1608,10 @@ function verify_transaction_request(transaction,fileAccess,fileAdresses,fileData
     if(boolExistTransaction == true) return false;
     
     
-    /*var boolExistRequested=existNode(transaction.requested,fileAdresses);
+    var boolExistRequested=existNode(transaction.requested,fileAdresses);
     console.log('Bool Exist Requested : '+boolExistRequested);
     if(boolExistRequested == false) return false;
-    */
+    
 
     var boolExistRequester=existNode(transaction.requester,fileAdresses);
     console.log('Bool Exist requester : '+boolExistRequester);
@@ -1491,7 +1620,7 @@ function verify_transaction_request(transaction,fileAccess,fileAdresses,fileData
 
     var boolPermission=QueryPermission(fileAccess,fileAdresses,transaction.requester,transaction.requested,transaction.action,'conditions','obligations');
     console.log('Bool Permission : '+boolPermission);
-    if(boolPermission == false) return false;
+    if(boolPermission == false && transaction.token != null) return false;
     
 
     return true;
@@ -1506,10 +1635,12 @@ function verify_transaction_use(transaction,fileAccess,fileAdresses,fileData){
     var token=new Token();
     var transaction_use= new TransactionUse();
 
-    var boolToken=token.verify(transaction.token.hash,transaction.token.action,transaction.token.validity,transaction.token.timestamp);
-     console.log('Bool Token : '+boolToken);
-    if(boolToken == false) return false;
-   
+     if(transaction.token != null){
+        var boolToken=token.verify(transaction.token.hash,transaction.token.action,transaction.token.validity,transaction.token.timestamp);
+        console.log('Bool Token : '+boolToken);
+        if(boolToken == false) return false;    
+    }
+    
     
     var boolTransaction=transaction_use.verify(transaction.hash,transaction.requested,transaction.requester,transaction.action,transaction.timestamp,transaction.token);  
     console.log('Bool Transaction : '+boolTransaction);
@@ -1531,7 +1662,7 @@ function verify_transaction_use(transaction,fileAccess,fileAdresses,fileData){
     if(boolExistRequester == false) return false;
     
 
-    var boolPermission=QueryPermission(fileAccess,fileAdresses,transaction.requester,transaction.requested,transaction.action,'conditions','obligations');
+    var boolPermission=QueryPermission(fileAccess,transaction.requester,transaction.requested,transaction.action,'conditions','obligations');
     console.log('Bool Permission : '+boolPermission);
     if(boolPermission == false) return false;
     
@@ -1640,10 +1771,10 @@ function check_efficiency(transaction,fileAdresses,fileData,fileAccess){
     console.log('Exist Transaction : '+boolExistTransaction);
     if(boolExistTransaction == false) return false;
 
-    /* boolExistToken = existToken(token,fileData);
+     boolExistToken = existToken(transaction.token.hash,fileData);
     console.log('Exist Token : '+boolExistToken);
     if(boolExistToken == false) return false;
-    */
+    
 
     boolHasPermission = QueryPermission(fileAccess,fileAdresses,transaction.requester,transaction.requested,transaction.action,transaction.conditions,transaction.obligations);
     console.log('Has Permission : '+boolHasPermission);
@@ -1652,9 +1783,12 @@ function check_efficiency(transaction,fileAdresses,fileData,fileAccess){
     var token=new Token();
     var transaction_request= new TransactionRequest();
 
-    var boolToken=token.verify(transaction.token.hash,transaction.token.action,transaction.token.validity,transaction.token.timestamp);
-    console.log('Bool Token : '+boolToken);
-    if(boolToken == false) return false;
+    if(transaction.token != null){
+        var boolToken=token.verify(transaction.token.hash,transaction.token.action,transaction.token.validity,transaction.token.timestamp);
+        console.log('Bool Token : '+boolToken);
+        if(boolToken == false) return false;    
+    }
+    
    
     
     var boolTransaction=transaction_request.verify(transaction.hash,transaction.requested,transaction.requester,transaction.action,transaction.timestamp,transaction.token);  
@@ -1716,13 +1850,20 @@ function broadcast_publicKey(fileAdresses,publicKey,macadr,fileConfig){
             //Test if node is miner
             if(objAdresses.table[i].Node.role == 'miner'){
                 nodeInfo=get_node_info(fileConfig);
+                var str = publicKey+''+macadr;
+                var privateKey = new Buffer(nodeInfo.Key.privateKey,'hex');
+                var ec = new EC("secp256k1");
+                var shaMsg = crypto.createHash("sha256").update(str).digest();
+                var mySign = ec.sign(shaMsg, privateKey, {canonical: true});
+                var signature = asn1SigSigToConcatSig(mySign);
+                
                 var packet = {
                     from: {
                         address: nodeInfo.Server.IP,
                         port: nodeInfo.Server.port ,
                         id: server.id
                         },
-                    message: { type: 11, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: publicKey, mac : macadr } 
+                    message: { type: 11, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: nodeInfo.Key.publicKey, mac : macadr, signature : signature, shaMsg : shaMsg } 
                 };
                 server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
             }
@@ -1907,23 +2048,40 @@ function broadcast_access_rights(type,requester,requested,action,condition,oblig
             if(objAdresses.table[i].Node.role == 'miner'){
                 if(type == 'ADD'){
                     nodeInfo=get_node_info(fileConfig);
+
+                    var str = type+''+JSON.stringify(listAccess);
+                    var keyPublic =  new Buffer(nodeInfo.Key.publicKey,'hex');
+                    var privateKey = new Buffer(nodeInfo.Key.privateKey,'hex');
+                    var ec = new EC("secp256k1");
+                    var shaMsg = crypto.createHash("sha256").update(str).digest();
+                    var mySign = ec.sign(shaMsg, privateKey, {canonical: true});
+                    var signature = asn1SigSigToConcatSig(mySign);
+                    
                     var packet = {
                     from: {
                        address: nodeInfo.Server.IP,
                         port: nodeInfo.Server.port ,
                         id: server.id
                         },
-                    message: { type: 14, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, typeAction: type, listAccess : listAccess } 
+                    message: { type: 14, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey : nodeInfo.Key.publicKey, typeAction: type, listAccess : listAccess, shaMsg: shaMsg, signature: signature } 
                     };
                 }else{
                     nodeInfo=get_node_info(fileConfig);
+                    var str = type+''+requester+''+requested+''+action+''+condition+''+obligation+''+trust;
+                    var keyPublic =  new Buffer(nodeInfo.Key.publicKey,'hex');
+                    var privateKey = new Buffer(nodeInfo.Key.privateKey,'hex');
+                    var ec = new EC("secp256k1");
+                    var shaMsg = crypto.createHash("sha256").update(str).digest();
+                    var mySign = ec.sign(shaMsg, privateKey, {canonical: true});
+                    var signature = asn1SigSigToConcatSig(mySign);
+                    
                     var packet = {
                     from: {
                         address: nodeInfo.Server.IP,
                         port: nodeInfo.Server.port ,
                         id: server.id
                         },
-                    message: { type: 14, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, typeAction: type, requester : requester, requested : requested, action : action, condition : condition, obligation : obligation, trust : trust } 
+                    message: { type: 14, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey : nodeInfo.Key.publicKey, typeAction: type, requester : requester, requested : requested, action : action, condition : condition, obligation : obligation, trust : trust, shaMsg : shaMsg, signature : signature } 
                     };    
                 }
                 server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
@@ -1993,9 +2151,9 @@ function concatSigToAsn1Sig(concatSigBuffer) {
  */
 server.start({
     onstart: onstart,
-	onmessage: onmessage,
-	join: {
-		address: 'localhost',
-		port: 8000
-	}
+    onmessage: onmessage,
+    join: {
+        address: 'localhost',
+        port: 8000
+    }
 });
