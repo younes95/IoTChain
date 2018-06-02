@@ -1,13 +1,5 @@
 var mosca = require('mosca');
 
-var pubsubSettings = {
-    /* For AMQP */
-    type: 'amqp',
-    json: false,
-    amqp: require('amqp'),
-    exchange: 'amq.topic'
-};
-
 var moscaSetting = {
     interfaces: [
         { type: "mqtt", port: 1883 },
@@ -16,11 +8,7 @@ var moscaSetting = {
     stats: false,
     onQoS2publish: 'noack', // can set to 'disconnect', or to 'dropToQoS1' if using a client which will eat puback for QOS 2; e.g. mqtt.js
 
-    logger: { name: 'IoTChainServer', level: 'debug' },
-
-    persistence: { factory: mosca.persistence.Redis, url: 'localhost:6379', ttl: { subscriptions: 1000 * 60 * 10, packets: 1000 * 60 * 10 } },
-
-    backend: pubsubSettings,
+    logger: { name: 'IoTChain MQTT Server', level: 'debug' }
 };
 
 var authenticate = function (client, username, password, callback) {
@@ -46,43 +34,42 @@ var authorizeSubscribe = function (client, topic, callback) {
     //  false to deny 
     callback(null, auth);
 }
+var mqttserver = new mosca.Server(moscaSetting);
 
-var server = new mosca.Server(moscaSetting);
-
-server.on('ready', setup);
+ mqttserver.on('ready', setup);
 
 function setup() {
-    server.authenticate = authenticate;
-    server.authorizePublish = authorizePublish;
-    server.authorizeSubscribe = authorizeSubscribe;
+    mqttserver.authenticate = authenticate;
+    mqttserver.authorizePublish = authorizePublish;
+    mqttserver.authorizeSubscribe = authorizeSubscribe;
     
     console.log('IoTChain server is up and running.');
 }
 
-server.on("error", function (err) {
+mqttserver.on("error", function (err) {
     console.log(err);
 });
 
-server.on('clientConnected', function (client) {
+mqttserver.on('clientConnected', function (client) {
     console.log('Client Connected \t:= ', client.id);
 });
 
-server.on('published', function (packet, client) {
+mqttserver.on('published', function (packet, client) {
     console.log("Published :=", packet);
 });
 
-server.on('subscribed', function (topic, client) {
+mqttserver.on('subscribed', function (topic, client) {
     console.log("Subscribed :=", client.packet);
 });
 
-server.on('unsubscribed', function (topic, client) {
+mqttserver.on('unsubscribed', function (topic, client) {
     console.log('unsubscribed := ', topic);
 });
 
-server.on('clientDisconnecting', function (client) {
+mqttserver.on('clientDisconnecting', function (client) {
     console.log('clientDisconnecting := ', client.id);
 });
 
-server.on('clientDisconnected', function (client) {
+mqttserver.on('clientDisconnected', function (client) {
     console.log('Client Disconnected     := ', client.id);
 });

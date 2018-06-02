@@ -2,6 +2,7 @@
   "name": "blockchain-starter-kit",
   "version": "0.0.1",
   "dependencies": {
+    "asn1": "^0.2.3",
     "asn1.js": "git+https://github.com/indutny/asn1.js.git",
     "asn1js": "^2.0.20",
     "bn.js": "^4.11.8",
@@ -12,13 +13,14 @@
     "express": "^4.16.3",
     "jsonfile": "^4.0.0",
     "merkle": "^0.5.1",
-    "node-forge": "^0.7.4",
+    "mosca": "^2.8.1",
+    "node-forge": "^0.7.5",
     "secure-random": "^1.1.1",
     "shortid": "^2.2.8",
     "text-encoding": "^0.6.4",
     "utils-merge": "^1.0.0",
     "uuid": "^3.0.1",
-    "websocket": "^1.0.23"
+    "websocket": "^1.0.26"
   },
   "devDependencies": {},
   "scripts": {},
