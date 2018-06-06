@@ -1,8 +1,6 @@
 
 'use strict';
-
-function SmartContract() {
-    var server = require('./server');
+   var server = require('./server');
         var Miner = require('./libs/mining');
         var fs = require('fs'); 
         var shortid = require('shortid');
@@ -37,6 +35,10 @@ function SmartContract() {
     TransactionRequest= require('./transaction/transaction_request');
     TransactionUse = require('./transaction/transaction_use');
     Token = require('./transaction/token');
+
+
+function SmartContract() {
+ 
  
 };
 
