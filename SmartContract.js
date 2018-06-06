@@ -30,15 +30,14 @@ function SmartContract() {
                 this.key('r').int(),
                 this.key('s').int()
             );
-});
+    });
 
-// Import transaction classes
-Transaction = require('./transaction/transaction');
-TransactionRequest= require('./transaction/transaction_request');
-TransactionUse = require('./transaction/transaction_use');
-Token = require('./transaction/token');
-
-   
+    // Import transaction classes
+    Transaction = require('./transaction/transaction');
+    TransactionRequest= require('./transaction/transaction_request');
+    TransactionUse = require('./transaction/transaction_use');
+    Token = require('./transaction/token');
+ 
 };
 
 
@@ -997,6 +996,7 @@ SmartContract.prototype.concatSigToAsn1Sig = function (concatSigBuffer) {
     return EcdsaDerSig.encode({r, s}, 'der');
 }
 
+var smartcontract =  new SmartContract();
 
 /**
  * Export the smartcontract.
