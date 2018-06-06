@@ -1129,7 +1129,6 @@ function receiveNewNode(port){
                     };
                     server.sendMessage({address: ip, port: port},packet);
                 }
-
             }
             res.send({'response' : response });
            
