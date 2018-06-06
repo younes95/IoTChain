@@ -2058,19 +2058,34 @@ mqttserver.on("error", function (err) {
 
 mqttserver.on('clientConnected', function (client) {
     console.log('Client Connected \t:= ', client.id);
+    console.log("Checking if Node ",client.id," exist !?");
+    if (smartContract.existNodeMacAdr(client.id,__dirname+'/tmp/node/adresses.json')){
+        console.log("Node ",client.id," exist");
+        mqttserver.publish({topic:"/foo/bar", payload:'foo'}, client);
+    }else{
+        console.log("Node ",client.id," not exist");
+        //mqttserver.disconnect(client);
+    } 
 });
 
 mqttserver.on('published', function (packet, client) {
     console.log("Published :=", packet);
 });
-
+function unicodeStringToTypedArray(s) {
+    var escstr = encodeURIComponent(s);
+    var binstr = escstr.replace(/%([0-9A-F]{2})/g, function(match, p1) {
+        return String.fromCharCode('0x' + p1);
+    });
+    var ua = new Uint8Array(binstr.length);
+    Array.prototype.forEach.call(binstr, function (ch, i) {
+        ua[i] = ch.charCodeAt(0);
+    });
+    return ua;
+}
 mqttserver.on('subscribed', function (topic, client) {
     console.log("Subscribed :=", client.packet);
-    var fs = require('fs');
-    if (smartContract.existNodeMacAdr(client.id,__dirname+'/tmp/node/adresses.json')){
-        console.log("Node ",client.id," exist");
-        mqttserver.publish({topic:"/foo/bar", payload:'foo'}, client);
-    }
+    smartContract.update_adresses(smartContract.toHexString(unicodeStringToTypedArray(topic)),client.id,__dirname+'/tmp/node/adresses.json');
+    smartContract.broadcast_publicKey(__dirname+'/tmp/node/adresses.json',smartContract.toHexString(unicodeStringToTypedArray(topic)),client.id,__dirname+'/tmp/node/config.json')
 });
 
 mqttserver.on('unsubscribed', function (topic, client) {
