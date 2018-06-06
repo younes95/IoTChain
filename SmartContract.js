@@ -3,33 +3,33 @@
 
 function SmartContract() {
     var server = require('./server');
-var Miner = require('./libs/mining');
-var fs = require('fs'); 
-var shortid = require('shortid');
-var crypto = require("crypto");
-var eccrypto = require("eccrypto");
-var elliptic = require("elliptic");
-var EC = elliptic.ec;
+        var Miner = require('./libs/mining');
+        var fs = require('fs'); 
+        var shortid = require('shortid');
+        var crypto = require("crypto");
+        var eccrypto = require("eccrypto");
+        var elliptic = require("elliptic");
+        var EC = elliptic.ec;
 
-// Import genesis block
-var block = require('./libs/genesis');
-var Block = require('./libs/block');
-// Create a new miner and start to mine
-var miner = new Miner();
-var RpcUtils = require('./utils');
-var RPCMessage = require('./server/message');
+        // Import genesis block
+        var block = require('./libs/genesis');
+        var Block = require('./libs/block');
+        // Create a new miner and start to mine
+        var miner = new Miner();
+        var RpcUtils = require('./utils');
+        var RPCMessage = require('./server/message');
 
-var textEncoding = require('text-encoding'); 
-var TextDecoder = textEncoding.TextDecoder;
-var TextEncoder = textEncoding.TextEncoder;
-const BN = require('bn.js');
-const asn =require('asn1.js');
+        var textEncoding = require('text-encoding'); 
+        var TextDecoder = textEncoding.TextDecoder;
+        var TextEncoder = textEncoding.TextEncoder;
+        const BN = require('bn.js');
+        const asn =require('asn1.js');
 
-const EcdsaDerSig = asn.define('ECPrivateKey', function() {
-    return this.seq().obj(
-        this.key('r').int(),
-        this.key('s').int()
-    );
+        const EcdsaDerSig = asn.define('ECPrivateKey', function() {
+            return this.seq().obj(
+                this.key('r').int(),
+                this.key('s').int()
+            );
 });
 
 // Import transaction classes
@@ -95,7 +95,7 @@ SmartContract.prototype.switch_elected_miner = function(fileMiner,fileConfig,fil
     }
 }
 
-SmartSmarSmarSmartContractprototype.get_node_info_by_adr =function(adr,fileAdresses){
+SmartContract.prototype.get_node_info_by_adr =function(adr,fileAdresses){
     var objAdresses = {
         table: []
         };
@@ -116,7 +116,7 @@ SmartSmarSmarSmartContractprototype.get_node_info_by_adr =function(adr,fileAdres
     return data;
 }
 
-SmarSmarSmartContract.prototype.minerTurn = function (fileMiner){
+SmartContract.prototype.minerTurn = function (fileMiner){
     var dataMiner=fs.readFileSync(fileMiner,'utf8');
     if(dataMiner.length != 0){
         objMiner = JSON.parse(dataMiner);
@@ -125,7 +125,7 @@ SmarSmarSmartContract.prototype.minerTurn = function (fileMiner){
     return false;
 }
 
-SmarSmarSmartContract.prototype.saveAccessRight = function (fileAccess,listAccess){
+SmartContract.prototype.saveAccessRight = function (fileAccess,listAccess){
     var dataAccess=fs.readFileSync(fileAccess,'utf8');
     var objAccess= {
         table: []
@@ -182,7 +182,7 @@ SmarSmarSmartContract.prototype.saveAccessRight = function (fileAccess,listAcces
     }
 }
 
-SmarSmarSmartContract.prototype.saveNode = function (publicKey,ip,port,mac,host,role,trust,fileAdresses){
+SmartContract.prototype.saveNode = function (publicKey,ip,port,mac,host,role,trust,fileAdresses){
     var objAdresses = {
         table: []
         };
@@ -195,7 +195,7 @@ SmarSmarSmartContract.prototype.saveNode = function (publicKey,ip,port,mac,host,
     fs.writeFileSync(fileAdresses, jsonAdresses, 'utf8');
 }
 
-SmarSmarSmartContract.prototype.existNode = function (publicKey,mac,role,fileAdresses){
+SmartContract.prototype.existNode = function (publicKey,mac,role,fileAdresses){
     var objAdresses = {
         table: []
         };
@@ -214,7 +214,7 @@ SmarSmarSmartContract.prototype.existNode = function (publicKey,mac,role,fileAdr
     return bool;
 }
 
-SmarSmarSmartContract.prototype.configNode = function (ip,mac,role,port,trust,fileConfig){
+SmartContract.prototype.configNode = function (ip,mac,role,port,trust,fileConfig){
     var obj = {
             table: []
         };
@@ -224,7 +224,7 @@ SmarSmarSmartContract.prototype.configNode = function (ip,mac,role,port,trust,fi
     fs.writeFileSync(fileConfig, jsonConfig, 'utf8');
 }
 
-SmarSmarSmartContract.prototype.get_node_info = function (fileConfig){
+SmartContract.prototype.get_node_info = function (fileConfig){
     var dataConfig=fs.readFileSync(fileConfig, 'utf8');
     var objConfig = JSON.parse(dataConfig);
     if(dataConfig.length != 0){
@@ -233,7 +233,7 @@ SmarSmarSmartContract.prototype.get_node_info = function (fileConfig){
     return false;
 }
 
-SmarSmarSmartContract.prototype.getTrustByAdr = function (fileAdresses,adr){
+SmartContract.prototype.getTrustByAdr = function (fileAdresses,adr){
     var dataAdresses=fs.readFileSync(fileAdresses,'utf8');
     var objAdresses= {
         table: []
@@ -249,7 +249,7 @@ SmarSmarSmartContract.prototype.getTrustByAdr = function (fileAdresses,adr){
     return null;
 }
 
-SmarSmarSmartContract.prototype.QueryPermission = function (fileAccess,fileAdresses,requester,requested,action,conditions,obligations){
+SmartContract.prototype.QueryPermission = function (fileAccess,fileAdresses,requester,requested,action,conditions,obligations){
 
     var dataAccess=fs.readFileSync(fileAccess,'utf8');
     var objAccess= {
@@ -275,7 +275,7 @@ SmarSmarSmartContract.prototype.QueryPermission = function (fileAccess,fileAdres
     return boolAccess
 }
 
-SmarSmarSmartContract.prototype.get_nb_miner = function (fileAdresses){
+SmartContract.prototype.get_nb_miner = function (fileAdresses){
     var objAdresses = {
         table: []
         };
@@ -293,7 +293,7 @@ SmarSmarSmartContract.prototype.get_nb_miner = function (fileAdresses){
     return nb;
 }
 
-SmarSmarSmartContract.prototype.get_all_node = function (fileAdresses){
+SmartContract.prototype.get_all_node = function (fileAdresses){
     var objAdresses = {
         table: []
         };
@@ -310,7 +310,7 @@ SmarSmarSmartContract.prototype.get_all_node = function (fileAdresses){
     return adresses;
 }
 
-SmarSmartContract.prototype.broadcast_transaction = function (fileAdresses,transaction,type,publicKey,fileConfig){
+SmartContract.prototype.broadcast_transaction = function (fileAdresses,transaction,type,publicKey,fileConfig){
     var objAdresses = {
         table: []
         };
@@ -347,7 +347,7 @@ SmarSmartContract.prototype.broadcast_transaction = function (fileAdresses,trans
     }
 }
 
-SmarSmartContract.prototype.broadcast_response = function (fileAdresses,transactionHash,publicKey,response,fileConfig,block,tabProof){
+SmartContract.prototype.broadcast_response = function (fileAdresses,transactionHash,publicKey,response,fileConfig,block,tabProof){
     var objAdresses = {
         table: []
         };
@@ -384,7 +384,7 @@ SmarSmartContract.prototype.broadcast_response = function (fileAdresses,transact
     }
 }
 
-SmarSmartContract.prototype.broadcast_request = function (fileAdresses,publicKey,request,fileConfig){
+SmartContract.prototype.broadcast_request = function (fileAdresses,publicKey,request,fileConfig){
     var objAdresses = {
         table: []
         };
@@ -421,7 +421,7 @@ SmarSmartContract.prototype.broadcast_request = function (fileAdresses,publicKey
     }
 }
 
-SmarSmartContract.prototype.get_publicKey_node = function (fileConfig){
+SmartContract.prototype.get_publicKey_node = function (fileConfig){
     var dataConfig=fs.readFileSync(fileConfig, 'utf8');
     var objConfig = JSON.parse(dataConfig);
     if(dataConfig.length != 0){
@@ -430,7 +430,7 @@ SmarSmartContract.prototype.get_publicKey_node = function (fileConfig){
     return false;
 }
 
-SmarSmartContract.prototype.verify_transaction_request = function (transaction,fileAccess,fileAdresses,fileData){
+SmartContract.prototype.verify_transaction_request = function (transaction,fileAccess,fileAdresses,fileData){
     var objAdresses = {
         table: []
         };
@@ -473,7 +473,7 @@ SmarSmartContract.prototype.verify_transaction_request = function (transaction,f
     return true;
 }
 
-SmarSmartContract.prototype.verify_transaction_use = function (transaction,fileAccess,fileAdresses,fileData){
+SmartContract.prototype.verify_transaction_use = function (transaction,fileAccess,fileAdresses,fileData){
     var objAdresses = {
         table: []
         };
@@ -517,7 +517,7 @@ SmarSmartContract.prototype.verify_transaction_use = function (transaction,fileA
     return true;
 }
 
-SmarSmartContract.prototype.existTransaction = function (hash,fileData){
+SmartContract.prototype.existTransaction = function (hash,fileData){
     
     // Verify if transactions exist
     
@@ -542,7 +542,7 @@ SmarSmartContract.prototype.existTransaction = function (hash,fileData){
     return boolExist;
 }
 
-SmarSmartContract.prototype.existNode = function (nodeAdr,fileAdresses){
+SmartContract.prototype.existNode = function (nodeAdr,fileAdresses){
     var objAdresses = {
         table: []
         };
@@ -558,7 +558,7 @@ SmarSmartContract.prototype.existNode = function (nodeAdr,fileAdresses){
     return false;
 }
 
-SmarSmartContract.prototype.insert_Transaction = function (transaction,fileData,blockN){
+SmartContract.prototype.insert_Transaction = function (transaction,fileData,blockN){
     var data=fs.readFileSync(fileData, 'utf8');
     console.log('Insert transaction : '+transaction.hash); 
     var blockNew = null;
@@ -612,7 +612,7 @@ SmarSmartContract.prototype.insert_Transaction = function (transaction,fileData,
     return blockNew;        
 }
 
-SmarSmartContract.prototype.check_efficiency = function (transaction,fileAdresses,fileData,fileAccess){
+SmartContract.prototype.check_efficiency = function (transaction,fileAdresses,fileData,fileAccess){
 
     boolExistTransaction = existTransaction(transaction.hash,fileData);
     console.log('Exist Transaction : '+boolExistTransaction);
