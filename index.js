@@ -6,6 +6,10 @@ var crypto = require("crypto");
 var eccrypto = require("eccrypto");
 var elliptic = require("elliptic");
 var EC = elliptic.ec;
+require('json-decycle').extend(JSON)
+ var requestTmp = ''; 
+JSON.decycle === require('json-decycle').decycle
+JSON.retrocycle === require('json-decycle').retrocycle
 
 // Import genesis block
 var block = require('./libs/genesis');
@@ -322,6 +326,7 @@ var onmessage = function(payload) {
 
     // Receiving request to execute action
     if(message.type == 8){
+        console.log('Receive reques');
         var request=message.request;
         var fileAccess = __dirname+'/tmp/node/list.json';
         var fileAdresses = __dirname+'/tmp/node/adresses.json';
@@ -690,6 +695,7 @@ var onmessage = function(payload) {
                                 bool = true;
                                 var insertTx=insert_Transaction(objTmp.table[i].Transaction,fileData);
                                 // Inform the two node that the access is granted
+
                                 console.timeEnd("Transaction generated, validated and inserted");
                                 broadcast_response(fileAdresses,objTmp.table[i].Transaction.hash,get_publicKey_node(fileConfig),'valid',fileConfig,insertTx,objTmp.table[i].tabProof);
                                 
@@ -801,12 +807,18 @@ var onmessage = function(payload) {
 
     // Test signature
     if(message.type == 15){
+        
+         console.log('Transaction received : 10dc457b861ccc684affdf08b965ac6adfbda4a60ff30b4a97bd28a02c8e94c3');
             var shaMsg = new Buffer(message.shaMsg,'hex');
             var publicKey = new Buffer(message.publicKey,'hex');
             var signature = new Buffer(message.signature,'hex');
             var ec = new EC("secp256k1");
             const asn1signature = concatSigToAsn1Sig(signature);
-            var isValid = ec.verify(shaMsg, asn1signature, publicKey)
+            var isValid = ec.verify(shaMsg, asn1signature, publicKey);
+            if(isValid){
+            }else{
+                console.log('Signature non valide, transaction : 10dc457b861ccc684affdf08b965ac6adfbda4a60ff30b4a97bd28a02c8e94c3 non validée');
+            }
             console.log(isValid);
     }
 
@@ -890,11 +902,27 @@ var onstart = function(node) {
    
     console.timeEnd("Adding new node"); */   
 
+                start_elected_miner(fileMiner,fileConfig,fileAdresses);
         setInterval(function() {
                 switch_elected_miner(fileMiner,fileConfig,fileAdresses);
             }, 15000);
 
+        /*console.log('Generation de clé ...')
+        var privateKey = crypto.randomBytes(32);
+        var publicKey = eccrypto.getPublic(privateKey);
 
+        console.time("Temps pour générer une paire de clé : ");
+
+        console.log('Clé privé : '+toHexString(privateKey));
+
+        console.log('Clé publique : '+toHexString(publicKey));
+        
+        console.timeEnd("Temps pour générer une paire de clé : ");  */
+            
+        //}
+       
+        
+            
         
 
         /*var privateKey = crypto.randomBytes(32);
@@ -989,26 +1017,40 @@ var onstart = function(node) {
                 broadcast_transaction(fileAdresses,transaction_use,'use',get_publicKey_node(fileConfig),fileConfig);
             }      */
 
+          /*  transaction = new TransactionRequest();
+            token = new Token();
+            transaction.hash="a31df7dbcbc1edd1561e7f6cfd0620c709f1829c7d08a3460bc3b32afdf217f7";
+            transaction.requested = "5869fff00fcd560bb0f237c3516a79cc969e79bec2558b05866d7b83a56db9e7dc142f681dea04f57099aa914a942f800386179f8c5359857f2a3065cc6cf30e70";
+            transaction.requester= "3546ccc00fcd560bb0f237c3516a79cc969e79bec2558b05866d7b83a56db9e7dc142f681dea04f57099aa914a942f800386179f8c5359857f2a3065cc6cf30e70";
+            transaction.timestamp=1528292454832;
+            transaction.action="CONFIG";
+            token.hash="dd7282652ff7c9262b591fb0271880dd463efc669a88dd9ed2852d2f320bcda7";
+            token.timestamp=1526650593630;
+            token.requested = "5869fff00fcd560bb0f237c3516a79cc969e79bec2558b05866d7b83a56db9e7dc142f681dea04f57099aa914a942f800386179f8c5359857f2a3065cc6cf30e70";
+            token.requester = "3546ccc00fcd560bb0f237c3516a79cc969e79bec2558b05866d7b83a56db9e7dc142f681dea04f57099aa914a942f800386179f8c5359857f2a3065cc6cf30e70";
+            token.validity=3600;
+            token.action="CONFIG";
+            transaction.token=token;
 
-          /*  var str = "message to sign";
-            var privateKey = crypto.randomBytes(32);
-            var publicKey = eccrypto.getPublic(privateKey);
+        
+            nodeInfo = get_node_info(fileConfig);
+            var str = JSON.stringify(transaction);
+            var keyPublic =  new Buffer(nodeInfo.Key.publicKey,'hex');;
+            var privateKey = new Buffer(nodeInfo.Key.privateKey,'hex');
             var ec = new EC("secp256k1");
             var shaMsg = crypto.createHash("sha256").update(str).digest();
             var mySign = ec.sign(shaMsg, privateKey, {canonical: true});
             var signature = asn1SigSigToConcatSig(mySign);
-            nodeInfo=get_node_info(fileConfig); 
-                var packet = {
-                        from: {
-                            address: nodeInfo.Server.IP,
-                            port: nodeInfo.Server.port,
-                            id: server.id
-                        },
-                    message: { type: 15, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey : publicKey, shaMsg : shaMsg,  signature : signature} 
-                };
-                server.sendMessage({address: '127.0.0.1', port: 8001},packet);*/
             
-    
+                var packet = {
+                    from: {
+                        address: nodeInfo.Server.IP,
+                        port: nodeInfo.Server.port,
+                        id: server.id
+                        },
+                    message: { type: 10, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: nodeInfo.Key.publicKey, transaction : transaction, typeTransaction : 'request', shaMsg: shaMsg, signature : signature } 
+                };
+                server.sendMessage({address: '192.168.43.198', port: 8000},packet);*/
     /*var fileMiner= __dirname+'/tmp/node/miner.json';
     var dataMiner=fs.readFileSync(fileMiner, 'utf8');
         if(data.length == 0){
@@ -1016,24 +1058,36 @@ var onstart = function(node) {
             var json = JSON.stringify(obj);
             fs.writeFileSync(file, json, 'utf8');
     }*/
+<<<<<<< HEAD
     receiveNewNode(9000);
 
 
                 
+=======
+
+    receiveNewNode(9000);             
+>>>>>>> ef46ce051823bee1c31cc70ada1565b3312cd10f
 };
 
 function receiveNewNode(port){
     var express = require('express');
     var bodyParser = require('body-parser');
+   // var cors = require('cors');
     var app = express();
-    app.use(bodyParser.urlencoded({ extended: true })); 
-    app.use(express.static('public'));
-    app.use(bodyParser.json());
+
     app.use(function(request, response, next) {
       response.header("Access-Control-Allow-Origin", "*");
+      response.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
       response.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
       next();
     });
+
+    app.use(bodyParser.urlencoded({ extended: true })); 
+    app.use(express.static('public'));
+    app.use(bodyParser.json());
+    
+var router = express.Router();
+
     
     app.all('/newNode', function(req, res) {
 
@@ -1064,8 +1118,11 @@ function receiveNewNode(port){
                 host=objReceived.ipadr;
                 ip=objReceived.ipadr;
                 role=objReceived.role;
-                trust = objReceived.trust;
-
+                var trust;
+                if(role == 'miner') trust = 0;
+                if(role == 'ressource') trust = 3;
+                if(role == 'user') trust = 5;
+                
                 saveNodeMacAdr(ip,port,mac,host,role,trust,fileAdresses);
 
                 // Save access rights of the new node
@@ -1128,13 +1185,21 @@ function receiveNewNode(port){
                     };
                     server.sendMessage({address: ip, port: port},packet);
                 }
+
+               /* if(role == 'user'){
+                   //Generate publicKey
+                   // update_adresses(publicKey,mac,fileAdresses);
+                }*/
+
             }
             res.send({'response' : response });
            
         }); 
     });
 
+
     app.all('/configNode', function(req, res) {
+
         res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
         console.log('Config Node');
         // Save in the config file
@@ -1147,7 +1212,13 @@ function receiveNewNode(port){
         objReceived=req.body;
         var jsonfile = require('jsonfile');
         var adrMac = require('os').networkInterfaces().wlan0[0].mac;
-        configNode(req.body.ipadr,adrMac,req.body.role,req.body.port,req.body.trust,fileConfig);
+
+        var trust;
+        if(req.body.role == 'miner') trust = 0;
+        if(req.body.role == 'ressource') trust = 3;
+        if(req.body.role == 'user') trust = 5;
+
+        configNode(req.body.ipadr,adrMac,req.body.role,req.body.port,trust,fileConfig);
         if(req.body.first == 'true'){
             var config = require('./config.js');
             var block = new Block(config.genesis);
@@ -1178,7 +1249,7 @@ function receiveNewNode(port){
                 var jsonConfig = JSON.stringify(objConfig);
                 fs.writeFileSync(fileConfig, jsonConfig, 'utf8');
             }
-            saveNode(toHexString(publicKey),req.body.ipadr,req.body.port,adrMac,req.body.ipadr,req.body.role,req.body.trust,fileAdresses);
+            saveNode(toHexString(publicKey),req.body.ipadr,req.body.port,adrMac,req.body.ipadr,req.body.role,trust,fileAdresses);
             
             var dataMiner=fs.readFileSync(fileMiner, 'utf8');
             objMiner = {
@@ -1193,7 +1264,7 @@ function receiveNewNode(port){
                 switch_elected_miner(fileMiner,fileConfig,fileAdresses);
             }, 15000);
         }else{
-            saveNodeMacAdr(req.body.ipadr,req.body.port,adrMac,req.body.ipadr,req.body.role,req.body.trust,fileAdresses);
+            saveNodeMacAdr(req.body.ipadr,req.body.port,adrMac,req.body.ipadr,req.body.role,trust,fileAdresses);
         }
 
         
@@ -1241,7 +1312,7 @@ function receiveNewNode(port){
 
     app.post('/getAllNode',function(req, res){
         console.log('Received request to send User');
-        
+        var util = require('util');
         var fileAdresses = __dirname+'/tmp/node/adresses.json';
         var fileAccess = __dirname+'/tmp/node/list.json';
         var nodes = [];
@@ -1253,7 +1324,7 @@ function receiveNewNode(port){
             adresses.push({Node : nodes[i].Node, accesslist : accesslist});
         }
         //console.log(adresses);
-        //adresses['Node']['accesslist']=get_node_accesslist(publicKey,mac,fileAccess);
+      //  adresses['Node']['accesslist']=get_node_accesslist(publicKey,mac,fileAccess);
         res.send(adresses);
         
     var packet = {
@@ -1310,13 +1381,37 @@ function receiveNewNode(port){
                 requester :req.body.requester,
                 requested : req.body.requested,
                 action : req.body.action,
+<<<<<<< HEAD
                 type : req.body.type,
                 value : req.body.value,
                 //conditions : '',
                 //obligations : '',
+=======
+                conditions : '',
+                obligations : '',
+            };
+       
+            var i=0;
+        setInterval(function() {
+            i++;
+            if(i==2){
+                requestTmp = 'ok';
+>>>>>>> ef46ce051823bee1c31cc70ada1565b3312cd10f
             }
+            if(requestTmp != ''){
+                console.log('Send to response');
+                requestTmp='';
+                res.json('HEEEy');  
+            } 
+            }, 5);
+
         // Broadcast request to execute Action
         broadcast_request(fileAdresses,get_publicKey_node(fileConfig),request,fileConfig);
+<<<<<<< HEAD
+=======
+            
+    });
+>>>>>>> ef46ce051823bee1c31cc70ada1565b3312cd10f
 
     });
     function getClientIp(req) {
@@ -1346,7 +1441,13 @@ function receiveNewNode(port){
         if(data.length != 0){
             objdata = JSON.parse(data);
         }
-        res.send(objdata);
+        res.send(JSON.stringify(objdata));
+    });
+
+    app.post('/receiveValue',function(req,res){
+        res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
+        console.log('Received request to send BC');
+        requestTmp = 'This is the value';
     });
 
     app.listen(port, function() {
@@ -1365,6 +1466,28 @@ function existTmpHash(hash,fileTmp){
         }
     }
     return false;
+}
+
+function start_elected_miner(fileMiner,fileConfig,fileAdresses){
+
+ var dataMiner=fs.readFileSync(fileMiner,'utf8');
+    
+    if(dataMiner.length != 0 ){
+        var objMiner = JSON.parse(dataMiner);
+        if(objMiner.table[0].myTurn == false){
+            if(objMiner.table[0].tabAdr.length != 0){
+                nodeInfoSender = get_node_info(fileConfig);
+                if(objMiner.table[0].tabAdr[objMiner.table[0].tabAdr.length-1] == nodeInfoSender.Key.publicKey){
+                    objMiner.table[0].myTurn == true;
+                    objMiner.table[0].tabAdr.push(objMiner.table[0].tabAdr[objMiner.table[0].tabAdr.length-1]);
+                    objMiner.table[0].tabAdr.splice(objMiner.table[0].tabAdr.length-1,1);
+                    var jsonMiner = JSON.stringify(objMiner);
+                    fs.writeFileSync(fileMiner, jsonMiner, 'utf8');
+                }
+            }
+        }
+    }
+
 }
 
 function switch_elected_miner(fileMiner,fileConfig,fileAdresses){
@@ -1391,7 +1514,6 @@ function switch_elected_miner(fileMiner,fileConfig,fileAdresses){
                 var shaMsg = crypto.createHash("sha256").update(str).digest();
                 var mySign = ec.sign(shaMsg, privateKey, {canonical: true});
                 var signature = asn1SigSigToConcatSig(mySign);
-                
                 var packet = {
                     from: {
                         address: nodeInfoSender.Server.IP,
@@ -1836,17 +1958,20 @@ function existTransaction(hash,fileData){
     boolExist= false;
     if(data.length != 0){
         obj = JSON.parse(data);
-        i=0; 
-        while(i<Object.keys(obj.table).length && boolExist == false){
+        var j = 0; 
+        
+        while(j<Object.keys(obj.table).length && boolExist == false){
             var block=new Block();
             var index=obj.table.length-1;
             var objTree = obj.table[index].Block._tree;
             var tabTree = Object.keys(objTree).map(function(key) {
               return [objTree[key]];
             });
-            block.new(obj.table[i].Block.hash,obj.table[i].Block.previousHash,obj.table[i].Block.timestamp,obj.table[i].Block.merkleRoot,obj.table[i].Block.difficulty,obj.table[i].Block.txs,obj.table[i].Block.nonce,obj.table[i].Block.no,tabTree,obj.table[i].Block.numberMax);
+           // console.log('Block '+i+' : ');
+            //console.log(obj.table[i].Block.txs.length)
+            block.new(obj.table[j].Block.hash,obj.table[j].Block.previousHash,obj.table[j].Block.timestamp,obj.table[j].Block.merkleRoot,obj.table[j].Block.difficulty,obj.table[j].Block.txs,obj.table[j].Block.nonce,obj.table[j].Block.no,tabTree,obj.table[j].Block.numberMax);
             boolExist=block.transactionsExist(hash); 
-            i++;
+            j++;
         }
 
     }

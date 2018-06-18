@@ -1,0 +1,102 @@
+
+    Create a javascript object with the table array in it
+
+    var obj = {
+       table: []
+    };
+
+    Add some data to it like
+
+    obj.table.push({id: 1, square:2});
+
+    Convert it from an object to string with stringify
+
+    var json = JSON.stringify(obj);
+
+    use fs to write the file to disk
+
+    var fs = require('fs');
+    fs.writeFile('myjsonfile.json', json, 'utf8', callback);
+
+    if you want to append it read the json file and convert it back to an object
+
+    fs.readFile('myjsonfile.json', 'utf8', function readFileCallback(err, data){
+        if (err){
+            console.log(err);
+        } else {
+        obj = JSON.parse(data); //now it an object
+        obj.table.push({id: 2, square:3}); //add some data
+        json = JSON.stringify(obj); //convert it back to json
+        fs.writeFile('myjsonfile.json', json, 'utf8', callback); // write it back 
+    }});
+
+    // Manipulare different functions
+
+
+    console.log('Private Key : '+toHexString(keypair.privateKey.n.data)  +' Public Key : '+keypair.publicKey);
+
+    var md = forge.md.sha1.create();
+    md.update('sign this', 'utf8');
+    var signature = keypair.privateKey.sign(md);
+    console.log('Signature : '+ Buffer.from(signature, 'utf8').toString('hex'));
+    console.log('Message non signé : '+Buffer.from(md.digest().bytes(), 'utf8').toString('hex'));
+    var verified = keypair.publicKey.verify(md.digest().bytes(), signature);
+    console.log('Verified signature : '+ verified);
+    bytes = "This is a message decrypted";
+    var encrypted = keypair.publicKey.encrypt(bytes);
+    console.log('Message crypté :'+ encrypted);
+    var decrypted = keypair.privateKey.decrypt(encrypted);
+    console.log('Message décrypté :'+ decrypted);
+
+
+    // Start mining
+
+    miner.setTransactions(['a', 'b', 'c']);
+    miner.setPreviousBlock(block);
+   
+    // Start to generate a hash
+     setInterval(function() {
+        var obj = {
+            table: []
+        };
+        miner.generateHash();
+        // A success hash is generated
+        if (miner.isSuccess()) {
+            
+            block = miner.getNewBlock();
+            //miner.setTransactions(['d']);
+             /* var packet = {
+                from: {
+                    address: server.address,
+                    port: server.port,
+                    id: server.id
+                },
+                message: { type: 5, id: '1', bloc: block } 
+            };
+            data=fs.readFileSync(file, 'utf8');
+            if(data.length == 0){
+                obj.table.push({Block : block});
+                var json = JSON.stringify(obj);
+                fs.writeFile(file, json, 'utf8');
+            }else{
+                fs.writeFile(file,'', 'utf8');
+                var obj = JSON.parse(data); 
+                obj.table.push({Block : block}); 
+                var json = JSON.stringify(obj);
+                fs.writeFile(file, json, 'utf8');
+            } 
+            console.log('Block Hash #' + block.no + '  Hash : ' + block.hash);
+            miner.setPreviousBlock(block);
+        }
+    }, 10);
+
+    // Manipulate transaction in block
+
+    block.setTransactions([obj]);
+    console.log('Transaction : '+block.txs);
+    miner.setPreviousBlock(block);
+    console.log('Transaction : '+block._tree);
+    console.log('Nombre de Transaction : '+block.getNumberOfTransactions());
+    console.log('Transactions : '+block.transactionsExist('a'));
+
+

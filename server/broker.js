@@ -116,7 +116,18 @@ WebsocketBroker.prototype.start = function(route, handlers) {
   };
 
   var onWsConnMessage = function(message) {
-
+     /*var messages = []; 
+    var speedLimit = 5000; //5ms
+    var mess = JSON.parse(message.utf8Data).message;
+    
+    if(new Date().getTime() - timestampGlob < speedLimit){
+      nbRequest++;
+      if(nbRequest > 10) console.log('Dos detected from :  '+mess.host);
+    }else{
+      nbRequest = 0;
+    }
+    timestampGlob = new Date().getTime();
+*/
     // Dispatching request message
     self.emit('data', {
       data: message.utf8Data,
