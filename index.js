@@ -8,8 +8,11 @@ var elliptic = require("elliptic");
 var EC = elliptic.ec;
 require('json-decycle').extend(JSON)
  var requestTmp = ''; 
+ var send = false;
+ var nbReq=0;
 JSON.decycle === require('json-decycle').decycle
 JSON.retrocycle === require('json-decycle').retrocycle
+const fileResponse = __dirname+'/tmp/node/sendResponse.json';
 
 // Import genesis block
 var block = require('./libs/genesis');
@@ -326,7 +329,7 @@ var onmessage = function(payload) {
 
     // Receiving request to execute action
     if(message.type == 8){
-        console.log('Receive reques');
+        console.log('Receive request');
         var request=message.request;
         var fileAccess = __dirname+'/tmp/node/list.json';
         var fileAdresses = __dirname+'/tmp/node/adresses.json';
@@ -378,11 +381,27 @@ var onmessage = function(payload) {
             if(boolAccess == true){
                 console.log('Has access, broadcast to miner to validate transaction : '+transaction_request.hash);
             }
-            broadcast_transaction(fileAdresses,transaction_request,'request',get_publicKey_node(fileConfig),fileConfig);
+            broadcast_transaction(fileAdresses,transaction_request,'request',get_publicKey_node(fileConfig),fileConfig,message.request);
           //  console.log(tmp);
         }
         if(boolAccess == false){
             console.log('Access refused');
+            var dataResponse=fs.readFileSync(fileResponse, 'utf8');
+            if(dataResponse.length != 0 ){
+                var objResponse = JSON.parse(dataResponse);
+                requestTmpFile = objResponse.requestTmp;
+                sendFile = objResponse.send;
+                if(sendFile == false){
+                requestTmp='Access refused';
+                send = true;
+                var objResponse = {
+                    requestTmp : requestTmp,
+                    send : send
+                }
+                var jsonResponse = JSON.stringify(objResponse);
+                fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
+                }  
+            }
         }
     }
 
@@ -609,7 +628,7 @@ var onmessage = function(payload) {
                             port: nodeInfo.Server.port,
                             id: server.id
                         },
-                    message: { type: 12, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: get_publicKey_node(fileConfig), transactionHash : transaction.hash, typeTransaction : message.typeTransaction, response : boolTransactionValid, shaMsg : shaMsg, signature : signature } 
+                    message: { type: 12, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: get_publicKey_node(fileConfig), transactionHash : transaction.hash, typeTransaction : message.typeTransaction, response : boolTransactionValid, shaMsg : shaMsg, signature : signature, request : message.request } 
                 };
                 server.sendMessage({address: message.host, port: message.port},packet);
         }else{
@@ -696,8 +715,31 @@ var onmessage = function(payload) {
                                 var insertTx=insert_Transaction(objTmp.table[i].Transaction,fileData);
                                 // Inform the two node that the access is granted
 
+                                value="30";
+                                /******/
+                                console.log(message.request.type);
+                                console.log(message.request.value);
+                                var dataResponse=fs.readFileSync(fileResponse, 'utf8');
+
+                                if(dataResponse.length != 0 ){
+                                    var objResponse = JSON.parse(dataResponse);
+                                    requestTmpFile = objResponse.requestTmp;
+                                    sendFile = objResponse.send;
+                                    if(sendFile == false){
+                                    requestTmp=value;
+                                    send = true;
+                                    var objResponse = {
+                                        requestTmp : requestTmp,
+                                        send : send
+                                    }
+
+                                    var jsonResponse = JSON.stringify(objResponse);
+                                    fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
+                                    }  
+                                }
+                                /*****/
                                 console.timeEnd("Transaction generated, validated and inserted");
-                                broadcast_response(fileAdresses,objTmp.table[i].Transaction.hash,get_publicKey_node(fileConfig),'valid',fileConfig,insertTx,objTmp.table[i].tabProof);
+                                broadcast_response(fileAdresses,objTmp.table[i].Transaction.hash,get_publicKey_node(fileConfig),'valid',fileConfig,insertTx,objTmp.table[i].tabProof,value);
                                 
                             }
                             if(objTmp.table[i].nb_node/2 <= objTmp.table[i].nb_reject){
@@ -739,6 +781,25 @@ var onmessage = function(payload) {
                 for(i=0;i<Object.keys(objTmp.table).length;i++){
                     if(objTmp.table[i].Transaction.hash == hash && message.response == 'valid'){
                         console.log('Insert Transaction : '+objTmp.table[i].Transaction.hash);
+                        
+                        var dataResponse=fs.readFileSync(fileResponse, 'utf8');
+                                               
+                        if(dataResponse.length != 0 ){
+                            var objResponse = JSON.parse(dataResponse);
+                            requestTmpFile = objResponse.requestTmp;
+                            sendFile = objResponse.send;
+                            if(sendFile == false){
+                            requestTmp=message.value;
+                            send = true;
+                            var objResponse = {
+                                requestTmp : requestTmp,
+                                send : send
+                            }
+
+                            var jsonResponse = JSON.stringify(objResponse);
+                            fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
+                            }  
+                        }
                         insert_Transaction(objTmp.table[i].Transaction,fileData,message.block);
                     }
                     // Delete the transaction from the tmp file
@@ -1081,7 +1142,7 @@ function receiveNewNode(port){
     app.use(express.static('public'));
     app.use(bodyParser.json());
     
-var router = express.Router();
+    var router = express.Router();
 
     
     app.all('/newNode', function(req, res) {
@@ -1181,16 +1242,16 @@ var router = express.Router();
                     server.sendMessage({address: ip, port: port},packet);
                 }
 
-               /* if(role == 'user'){
-                   //Generate publicKey
-                   // update_adresses(publicKey,mac,fileAdresses);
-                }*/
-                
-                /*if(role == 'ressource'){
-                    //Generate publicKey
-                    mqttserver.publish({topic:"INFO", payload:'foo'}, client);
-                    // update_adresses(publicKey,mac,fileAdresses);
-                 }*/
+                if(role == 'user'&& minerTurn(fileMiner) == true){
+                    console.log('Config node user');
+                    // Generate keypair for the node  
+                    var privateKey = crypto.randomBytes(32);
+                    var publicKey = eccrypto.getPublic(privateKey);
+                    update_adresses(publicKey,mac,fileAdresses);
+
+                    broadcast_publicKey(fileAdresses,publicKey,mac,fileConfig);
+                }
+
             }
             res.send({'response' : response });
            
@@ -1307,7 +1368,7 @@ var router = express.Router();
             var jsonTmp = JSON.stringify(objTmp);
             fs.writeFileSync(fileTmp, jsonTmp, 'utf8');
             
-            broadcast_transaction(fileAdresses,transaction_use,'use',get_publicKey_node(fileConfig),fileConfig);
+            broadcast_transaction(fileAdresses,transaction_use,'use',get_publicKey_node(fileConfig),fileConfig,'');
     });
 
     app.post('/getAllNode',function(req, res){
@@ -1327,10 +1388,6 @@ var router = express.Router();
       //  adresses['Node']['accesslist']=get_node_accesslist(publicKey,mac,fileAccess);
         res.send(adresses);
         
-    var packet = {
-        message: { type: 15} 
-    };
-        server.sendMessage({address: '192.168.43.1', port: 8001},packet);
     });
 
     app.post('/updateAccessRights',function(req, res){
@@ -1375,10 +1432,21 @@ var router = express.Router();
         
         var fileConfig = __dirname+'/tmp/node/config.json';
         var fileAdresses = __dirname+'/tmp/node/adresses.json';
+        nbReq ++;
+        var objResponse = {
+            requestTmp : '',
+            send : false
+        }
+
+        var jsonResponse = JSON.stringify(objResponse);
+        fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
+
+         var ipRequest = getClientIp(req).slice(getClientIp(req).lastIndexOf(':')+1);
         
+
         request = {
             ip : getClientIp(req),
-            requester :req.body.requester,
+            requester : get_node_info_by_ip(ipRequest,fileAdresses).table[0].adr,
             requested : req.body.requested,
             action : req.body.action,
             type : req.body.type,
@@ -1386,19 +1454,46 @@ var router = express.Router();
             //conditions : '',
             //obligations : '',
             };
+      
+        console.log(request);
        
-            var i=0;
-        setInterval(function() {
-            i++;
-            if(i==2){
-                requestTmp = 'ok';
-            }
-            if(requestTmp != ''){
-                console.log('Send to response');
-                requestTmp='';
-                res.json('HEEEy');  
-            } 
-            }, 5);
+
+        var objResponse = {
+            requestTmp : requestTmp,
+            send : send
+        }
+
+        var jsonResponse = JSON.stringify(objResponse);
+        fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
+            
+            var refreshIntervalId = setInterval(function() {
+                var dataResponse=fs.readFileSync(fileResponse, 'utf8');
+               
+                if(dataResponse.length != 0 ){
+                    var objResponse = JSON.parse(dataResponse);
+                    requestTmpFile = objResponse.requestTmp;
+                    sendFile = objResponse.send;
+                    if(sendFile == true && requestTmpFile !=''){
+                        console.log('Send to User the value');
+                        res.json(requestTmpFile);
+                        requestTmp='';  
+                        send = false;
+                        var objResponse = {
+                            requestTmp : requestTmp,
+                            send : send
+                        }
+
+                        var jsonResponse = JSON.stringify(objResponse);
+                        fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
+                        clearInterval(refreshIntervalId);
+                       // res.end();
+                    }   
+                        
+                        
+                }
+                       
+            }, 20);
+
 
         // Broadcast request to execute Action
         broadcast_request(fileAdresses,get_publicKey_node(fileConfig),request,fileConfig);
@@ -1421,27 +1516,27 @@ var router = express.Router();
         }
         return ipAddress;
       };
-    app.post('/getBlockchain',function(req,res){
-        res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
-        console.log('Received request to send BC');
-        var jsonToSend=null;
-        var fileData = __dirname+'/tmp/node/blocs/data.json';
-        data=fs.readFileSync(fileData, 'utf8');
-        var objdata = '';
-        if(data.length != 0){
-            objdata = JSON.parse(data);
-        }
-        res.send(JSON.stringify(objdata));
-    });
+        app.post('/getBlockchain',function(req,res){
+            res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
+            console.log('Received request to send BC');
+            var jsonToSend=null;
+            var fileData = __dirname+'/tmp/node/blocs/data.json';
+            data=fs.readFileSync(fileData, 'utf8');
+            var objdata = '';
+            if(data.length != 0){
+                objdata = JSON.parse(data);
+            }
+            res.send(JSON.stringify(objdata));
+        });
 
-    app.post('/receiveValue',function(req,res){
-        res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
-        console.log('Received request to send BC');
-        requestTmp = 'This is the value';
-    });
+        app.post('/receiveValue',function(req,res){
+            res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
+            console.log('Received request to send BC');
+            requestTmp = 'This is the value';
+        });
 
-    app.listen(port, function() {
-    });
+        app.listen(port, function() {
+        });
 }
 
 function existTmpHash(hash,fileTmp){
@@ -1533,6 +1628,27 @@ function get_node_info_by_adr(adr,fileAdresses){
             //Test adress mac and public key if exist
             if(objAdresses.table[i].Node.adr == adr){
                 data.table.push({ ip : objAdresses.table[i].Node.IP, port : objAdresses.table[i].Node.port, role : objAdresses.table[i].Node.role})
+            } 
+        }
+    }
+    return data;
+}
+
+function get_node_info_by_ip(ip,fileAdresses){
+    var objAdresses = {
+        table: []
+        };
+    var dataAdresses=fs.readFileSync(fileAdresses, 'utf8');
+    var data = {
+        table : []
+    } 
+    
+    if(dataAdresses.length != 0 ){
+        objAdresses = JSON.parse(dataAdresses);
+        for(i=0;i<Object.keys(objAdresses.table).length;i++){
+            //Test adress mac and public key if exist
+            if(objAdresses.table[i].Node.IP == ip){
+                data.table.push({ adr : objAdresses.table[i].Node.adr, port : objAdresses.table[i].Node.port, role : objAdresses.table[i].Node.role})
             } 
         }
     }
@@ -1733,7 +1849,7 @@ function get_all_node(fileAdresses){
     return adresses;
 }
 
-function broadcast_transaction(fileAdresses,transaction,type,publicKey,fileConfig){
+function broadcast_transaction(fileAdresses,transaction,type,publicKey,fileConfig,request){
     var objAdresses = {
         table: []
         };
@@ -1762,7 +1878,7 @@ function broadcast_transaction(fileAdresses,transaction,type,publicKey,fileConfi
                         port: nodeInfo.Server.port,
                         id: server.id
                         },
-                    message: { type: 10, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: nodeInfo.Key.publicKey, transaction : transaction, typeTransaction : type, shaMsg: shaMsg, signature : signature } 
+                    message: { type: 10, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: nodeInfo.Key.publicKey, transaction : transaction, typeTransaction : type, shaMsg: shaMsg, signature : signature, request : request } 
                 };
                 server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
             }
@@ -1770,7 +1886,7 @@ function broadcast_transaction(fileAdresses,transaction,type,publicKey,fileConfi
     }
 }
 
-function broadcast_response(fileAdresses,transactionHash,publicKey,response,fileConfig,block,tabProof){
+function broadcast_response(fileAdresses,transactionHash,publicKey,response,fileConfig,block,tabProof,value){
     var objAdresses = {
         table: []
         };
@@ -1799,7 +1915,7 @@ function broadcast_response(fileAdresses,transactionHash,publicKey,response,file
                         port: nodeInfo.Server.port,
                         id: server.id
                         },
-                    message: { type: 13, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: nodeInfo.Key.publicKey, transactionHash : transactionHash, response : response, block : block, tabProof : tabProof, shaMsg : shaMsg, signature : signature } 
+                    message: { type: 13, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: nodeInfo.Key.publicKey, transactionHash : transactionHash, response : response, block : block, tabProof : tabProof, shaMsg : shaMsg, signature : signature, value : value } 
                 };
                 server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
             }
@@ -2429,106 +2545,4 @@ function concatSigToAsn1Sig(concatSigBuffer) {
 server.start({
     onstart: onstart,
     onmessage: onmessage,
-});
-/*--------------------------------------------------------*/
-/*------------------MQTT BROKER SETUP---------------------*/
-/*--------------------------------------------------------*/
-var mosca = require('mosca');
-var smartContract = require('./SmartContract');
-var moscaSetting = {
-    interfaces: [
-        { type: "mqtt", port: 1883 },
-        { type: "http", port: 3000, bundle: true }
-    ],
-    stats: false,
-    onQoS2publish: 'noack', // can set to 'disconnect', or to 'dropToQoS1' if using a client which will eat puback for QOS 2; e.g. mqtt.js
-
-    logger: { name: 'IoTChain MQTT Server', level: 'debug' }
-};
-
-var authenticate = function (client, username, password, callback) {
-    if (username == "test" && password.toString() == "test")
-        callback(null, true);
-    else
-        callback(null, false);
-}
-
-var authorizePublish = function (client, topic, payload, callback) {
-    var auth = true;
-    // set auth to :
-    //  true to allow 
-    //  false to deny and disconnect
-    //  'ignore' to puback but not publish msg.
-    callback(null, auth);
-}
-
-var authorizeSubscribe = function (client, topic, callback) {
-    var auth = true;
-    // set auth to :
-    //  true to allow
-    //  false to deny 
-    callback(null, auth);
-}
-var mqttserver = new mosca.Server(moscaSetting);
-
- mqttserver.on('ready', setup);
-
-function setup() {
-    mqttserver.authenticate = authenticate;
-    mqttserver.authorizePublish = authorizePublish;
-    mqttserver.authorizeSubscribe = authorizeSubscribe;
-    
-    console.log('IoTChain server is up and running.');
-}
-
-mqttserver.on("error", function (err) {
-    console.log(err);
-});
-
-mqttserver.on('clientConnected', function (client) {
-    console.log('Client Connected \t:= ', client.id);
-    console.log("Checking if Node ",client.id," exist !?");
-    if (smartContract.existNodeMacAdr(client.id,__dirname+'/tmp/node/adresses.json')){
-        console.log("Node ",client.id," exist");
-        mqttserver.publish({topic:"MINERS", payload:'foo'}, client);
-        //mqttserver.publish({topic:"REQUEST_USE", payload:'foo'}, client);
-    }else{
-        console.log("Node ",client.id," not exist");
-        //mqttserver.disconnect(client);
-    } 
-});
-
-mqttserver.on('published', function (packet, client) {
-    console.log("Published :=", packet);
-    if (packet.topic=="INFO"){
-    console.log('Client \t:= ', client.id,' @ ',packet.payload);
-    smartContract.update_adresses(smartContract.toHexString(packet.payload),client.id,__dirname+'/tmp/node/adresses.json');
-    smartContract.broadcast_publicKey(__dirname+'/tmp/node/adresses.json',smartContract.toHexString(packet.payload),client.id,__dirname+'/tmp/node/config.json')
-    }
-});
-function unicodeStringToTypedArray(s) {
-    var escstr = encodeURIComponent(s);
-    var binstr = escstr.replace(/%([0-9A-F]{2})/g, function(match, p1) {
-        return String.fromCharCode('0x' + p1);
-    });
-    var ua = new Uint8Array(binstr.length);
-    Array.prototype.forEach.call(binstr, function (ch, i) {
-        ua[i] = ch.charCodeAt(0);
-    });
-    return ua;
-}
-mqttserver.on('subscribed', function (topic, client) {
-    console.log("Subscribed :=", client.packet);
-    });
-
-mqttserver.on('unsubscribed', function (topic, client) {
-    console.log('unsubscribed := ', topic);
-});
-
-mqttserver.on('clientDisconnecting', function (client) {
-    console.log('clientDisconnecting := ', client.id);
-});
-
-mqttserver.on('clientDisconnected', function (client) {
-    console.log('Client Disconnected     := ', client.id);
 });
