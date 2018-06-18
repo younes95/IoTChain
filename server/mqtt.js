@@ -1,5 +1,6 @@
 var mosca = require('mosca');
-
+var SmartContract = require('./SmartContract');
+var smartContract = new SmartContract();
 var moscaSetting = {
     interfaces: [
         { type: "mqtt", port: 1883 },
@@ -60,6 +61,10 @@ mqttserver.on('published', function (packet, client) {
 
 mqttserver.on('subscribed', function (topic, client) {
     console.log("Subscribed :=", client.packet);
+    if (smartContract.existNodeMacAdr(client.packet,'../tmp/node/adresses.json')){
+        console.log("Node exist");
+        mqttserver.publish({topic:"/foo/bar", payload:'foo'}, client);
+    }
 });
 
 mqttserver.on('unsubscribed', function (topic, client) {

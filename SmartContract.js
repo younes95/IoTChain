@@ -676,7 +676,7 @@ SmartContract.prototype.existNodeMacAdr = function (mac,fileAdresses){
     if(dataAdresses.length != 0 ){
         objAdresses = JSON.parse(dataAdresses);
 
-        for(i=0;i<Object.keys(objAdresses.table).length;i++){
+        for(var i=0;i<Object.keys(objAdresses.table).length;i++){
             // Test if node exist
             if(objAdresses.table[i].Node.MAC == mac) return true;
         }
@@ -694,16 +694,16 @@ SmartContract.prototype.broadcast_publicKey = function (fileAdresses,publicKey,m
     if(dataAdresses.length != 0 ){
         objAdresses = JSON.parse(dataAdresses);
 
-        for(i=0;i<Object.keys(objAdresses.table).length;i++){
+        for(var i=0;i<Object.keys(objAdresses.table).length;i++){
             //Test if node is miner
             if(objAdresses.table[i].Node.role == 'miner'){
-                nodeInfo=get_node_info(fileConfig);
+                var nodeInfo=this.get_node_info(fileConfig);
                 var str = publicKey+''+macadr;
                 var privateKey = new Buffer(nodeInfo.Key.privateKey,'hex');
                 var ec = new EC("secp256k1");
                 var shaMsg = crypto.createHash("sha256").update(str).digest();
                 var mySign = ec.sign(shaMsg, privateKey, {canonical: true});
-                var signature = asn1SigSigToConcatSig(mySign);
+                var signature = this.asn1SigSigToConcatSig(mySign);
                 
                 var packet = {
                     from: {
@@ -728,7 +728,7 @@ SmartContract.prototype.update_adresses = function (publicKey,mac,fileAdresses){
     
     if(dataAdresses.length != 0 ){
         objAdresses = JSON.parse(dataAdresses);
-        for(i=0;i<objAdresses.table.length;i++){
+        for(var i=0;i<objAdresses.table.length;i++){
             if(objAdresses.table[i].Node.MAC == mac ){
                 objAdresses.table[i].Node.adr = publicKey;
             }
@@ -747,7 +747,7 @@ SmartContract.prototype.update_access_list = function (publicKey,mac,fileAccess)
     if(dataAccess.length != 0 ){
         var objAccess = JSON.parse(dataAccess);
             
-        for(i=0;i<objAccess.table.length;i++){
+        for(var i=0;i<objAccess.table.length;i++){
             if(objAccess.table[i].Node.adr == mac) objAccess.table[i].Node.adr = publicKey;
                 for(k=0;k<objAccess.table[i].Node.accesslist.length;k++){
                     if(objAccess.table[i].Node.accesslist[k].ressource == mac) objAccess.table[i].Node.accesslist[k].ressource = publicKey; 
@@ -766,7 +766,7 @@ SmartContract.prototype.get_node_accesslist = function (publicKey,mac,fileAccess
 
     if(dataAccess.length != 0 ){
         var objAccess = JSON.parse(dataAccess);
-        for(i=0;i<objAccess.table.length;i++){
+        for(var i=0;i<objAccess.table.length;i++){
             if(objAccess.table[i].Node.adr == mac || objAccess.table[i].Node.adr == publicKey){
                 return objAccess.table[i].Node.accesslist;
             }
@@ -785,7 +785,7 @@ SmartContract.prototype.update_access_rights = function(requester,requested,acti
     if(dataAccess.length != 0 ){
         var objAccess = JSON.parse(dataAccess);
             
-        for(i=0;i<objAccess.table.length;i++){
+        for(var i=0;i<objAccess.table.length;i++){
             if(objAccess.table[i].Node.adr == requester){
                 for(k=0;k<objAccess.table[i].Node.accesslist.length;k++){
                     if(objAccess.table[i].Node.accesslist[k].ressource == requested && objAccess.table[i].Node.accesslist[k].rights == action){
@@ -810,7 +810,7 @@ SmartContract.prototype.delete_access_rights = function(requester,requested,acti
     if(dataAccess.length != 0 ){
         var objAccess = JSON.parse(dataAccess);
             
-        for(i=0;i<objAccess.table.length;i++){
+        for(var i=0;i<objAccess.table.length;i++){
             if(objAccess.table[i].Node.adr == requester){
                 for(k=0;k<objAccess.table[i].Node.accesslist.length;k++){
                     if(objAccess.table[i].Node.accesslist[k].ressource == requested && objAccess.table[i].Node.accesslist[k].rights == action){
@@ -835,7 +835,7 @@ SmartContract.prototype.add_access_rights = function(fileAccess,listAccess){
                 precHash = objAccess.table[0].Node.adr; 
                 var boolNode = false;
                 var boolAccess = false;
-                for(i=0;i<objAccess.table.length;i++){
+                for(var i=0;i<objAccess.table.length;i++){
                     
                         for(j=0;j<listAccess.length;j++){
                             if(objAccess.table[i].Node.adr == listAccess[j].requested){
