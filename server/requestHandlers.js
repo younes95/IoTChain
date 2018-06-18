@@ -35,7 +35,6 @@ Handlers = {
   receive: function(pathname, connection, clients) {
     // the original sender pathname
     connection.pathname = pathname;
-
     /*
      * convert sender pathname to viewer pathname
      * eg. '/object/mbedtaiwan/send' to '/object/mbedtaiwan/viewer'

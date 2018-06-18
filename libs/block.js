@@ -84,6 +84,7 @@ Block.prototype.transactionsExist = function(hash) {
 
     if(this.txs.length != 0){
         for(i=0;i<this.txs.length;i++) {
+           // console.log(this.txs[i].hash == hash);
             //console.log('Transaction #'+i+' : '+nodes[i]);
             if (this.txs[i].hash == hash) return true ;
         }
