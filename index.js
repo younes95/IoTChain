@@ -6,6 +6,7 @@ var crypto = require("crypto");
 var eccrypto = require("eccrypto");
 var elliptic = require("elliptic");
 var EC = elliptic.ec;
+<<<<<<< HEAD
 require('json-decycle').extend(JSON)
  var requestTmp = ''; 
  var send = false;
@@ -13,6 +14,10 @@ require('json-decycle').extend(JSON)
 JSON.decycle === require('json-decycle').decycle
 JSON.retrocycle === require('json-decycle').retrocycle
 const fileResponse = __dirname+'/tmp/node/sendResponse.json';
+=======
+var requestTmp = ''; 
+
+>>>>>>> ce89b299d2b89d221d96709769354e76ee6cc091
 
 // Import genesis block
 var block = require('./libs/genesis');
@@ -2545,4 +2550,111 @@ function concatSigToAsn1Sig(concatSigBuffer) {
 server.start({
     onstart: onstart,
     onmessage: onmessage,
+})
+/*--------------------------------------------------------*/
+/*------------------MQTT BROKER SETUP---------------------*/
+/*--------------------------------------------------------*/
+var mosca = require('mosca');
+var smartContract = require('./SmartContract');
+var moscaSetting = {
+    interfaces: [
+        { type: "mqtt", port: 1883 },
+        { type: "http", port: 3000, bundle: true }
+    ],
+    stats: false,
+    onQoS2publish: 'noack', // can set to 'disconnect', or to 'dropToQoS1' if using a client which will eat puback for QOS 2; e.g. mqtt.js
+
+    logger: { name: 'IoTChain MQTT Server' /*, level: 'debug'*/ }
+};
+
+var authenticate = function (client, username, password, callback) {
+    if (username == "test" && password.toString() == "test")
+        callback(null, true);
+    else
+        callback(null, false);
+}
+
+var authorizePublish = function (client, topic, payload, callback) {
+    var auth = true;
+    // set auth to :
+    //  true to allow 
+    //  false to deny and disconnect
+    //  'ignore' to puback but not publish msg.
+    callback(null, auth);
+}
+
+var authorizeSubscribe = function (client, topic, callback) {
+    var auth = true;
+    // set auth to :
+    //  true to allow
+    //  false to deny 
+    callback(null, auth);
+}
+var mqttserver = new mosca.Server(moscaSetting);
+
+ mqttserver.on('ready', setup);
+
+function setup() {
+    mqttserver.authenticate = authenticate;
+    mqttserver.authorizePublish = authorizePublish;
+    mqttserver.authorizeSubscribe = authorizeSubscribe;
+    
+    console.log('IoTChain server is up and running.');
+}
+
+mqttserver.on("error", function (err) {
+    console.log(err);
+});
+
+mqttserver.on('clientConnected', function (client) {
+    console.log('Client Connected \t:= ', client.id);
+    console.log("Checking if Node ",client.id," exist !?");
+    if (smartContract.existNodeMacAdr(client.id,__dirname+'/tmp/node/adresses.json')){
+        console.log("Node ",client.id," exist");
+        //mqttserver.publish({topic:"REQUEST_USE", payload:'foo'}, client);
+    }else{
+        //mqttserver.publish({topic:"MINERS", payload:'foo'}, client);
+        console.log("Node ",client.id," not exist");
+        //mqttserver.disconnect(client);
+    } 
+});
+
+mqttserver.on('published', function (packet, client) {
+    console.log("Published :=", packet);
+    if (packet.topic=="INFO"){
+    //console.log('Client \t:= ', client.id,' @ ',packet.payload);
+    smartContract.update_adresses(smartContract.toHexString(packet.payload),client.id,__dirname+'/tmp/node/adresses.json');
+    smartContract.broadcast_publicKey(__dirname+'/tmp/node/adresses.json',smartContract.toHexString(packet.payload),client.id,__dirname+'/tmp/node/config.json')
+    }
+});
+function unicodeStringToTypedArray(s) {
+    var escstr = encodeURIComponent(s);
+    var binstr = escstr.replace(/%([0-9A-F]{2})/g, function(match, p1) {
+        return String.fromCharCode('0x' + p1);
+    });
+    var ua = new Uint8Array(binstr.length);
+    Array.prototype.forEach.call(binstr, function (ch, i) {
+        ua[i] = ch.charCodeAt(0);
+    });
+    return ua;
+}
+mqttserver.on('subscribed', function (topic, client) {
+    if (topic=="MINERS"){
+        console.log("Subscribed IN MINERS TOPIC");
+        mqttserver.publish({topic:"MINERS", payload:'foo'}, client);
+    }
+
+    console.log("Subscribed :=", client.packet);
+    });
+
+mqttserver.on('unsubscribed', function (topic, client) {
+    console.log('unsubscribed := ', topic);
+});
+
+mqttserver.on('clientDisconnecting', function (client) {
+    console.log('clientDisconnecting := ', client.id);
+});
+
+mqttserver.on('clientDisconnected', function (client) {
+    console.log('Client Disconnected     := ', client.id);
 });
