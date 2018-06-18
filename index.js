@@ -6,10 +6,8 @@ var crypto = require("crypto");
 var eccrypto = require("eccrypto");
 var elliptic = require("elliptic");
 var EC = elliptic.ec;
-require('json-decycle').extend(JSON)
- var requestTmp = ''; 
-JSON.decycle === require('json-decycle').decycle
-JSON.retrocycle === require('json-decycle').retrocycle
+var requestTmp = ''; 
+
 
 // Import genesis block
 var block = require('./libs/genesis');
@@ -1185,7 +1183,7 @@ var router = express.Router();
                    //Generate publicKey
                    // update_adresses(publicKey,mac,fileAdresses);
                 }*/
-                
+
                 /*if(role == 'ressource'){
                     //Generate publicKey
                     mqttserver.publish({topic:"INFO", payload:'foo'}, client);
@@ -2443,7 +2441,7 @@ var moscaSetting = {
     stats: false,
     onQoS2publish: 'noack', // can set to 'disconnect', or to 'dropToQoS1' if using a client which will eat puback for QOS 2; e.g. mqtt.js
 
-    logger: { name: 'IoTChain MQTT Server', level: 'debug' }
+    logger: { name: 'IoTChain MQTT Server' /*, level: 'debug'*/ }
 };
 
 var authenticate = function (client, username, password, callback) {
@@ -2490,9 +2488,9 @@ mqttserver.on('clientConnected', function (client) {
     console.log("Checking if Node ",client.id," exist !?");
     if (smartContract.existNodeMacAdr(client.id,__dirname+'/tmp/node/adresses.json')){
         console.log("Node ",client.id," exist");
-        mqttserver.publish({topic:"MINERS", payload:'foo'}, client);
         //mqttserver.publish({topic:"REQUEST_USE", payload:'foo'}, client);
     }else{
+        //mqttserver.publish({topic:"MINERS", payload:'foo'}, client);
         console.log("Node ",client.id," not exist");
         //mqttserver.disconnect(client);
     } 
@@ -2501,7 +2499,7 @@ mqttserver.on('clientConnected', function (client) {
 mqttserver.on('published', function (packet, client) {
     console.log("Published :=", packet);
     if (packet.topic=="INFO"){
-    console.log('Client \t:= ', client.id,' @ ',packet.payload);
+    //console.log('Client \t:= ', client.id,' @ ',packet.payload);
     smartContract.update_adresses(smartContract.toHexString(packet.payload),client.id,__dirname+'/tmp/node/adresses.json');
     smartContract.broadcast_publicKey(__dirname+'/tmp/node/adresses.json',smartContract.toHexString(packet.payload),client.id,__dirname+'/tmp/node/config.json')
     }
@@ -2518,6 +2516,11 @@ function unicodeStringToTypedArray(s) {
     return ua;
 }
 mqttserver.on('subscribed', function (topic, client) {
+    if (topic=="MINERS"){
+        console.log("Subscribed IN MINERS TOPIC");
+        mqttserver.publish({topic:"MINERS", payload:'foo'}, client);
+    }
+
     console.log("Subscribed :=", client.packet);
     });
 
