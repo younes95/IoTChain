@@ -2061,7 +2061,10 @@ mqttserver.on('clientConnected', function (client) {
     console.log("Checking if Node ",client.id," exist !?");
     if (smartContract.existNodeMacAdr(client.id,__dirname+'/tmp/node/adresses.json')){
         console.log("Node ",client.id," exist");
-        mqttserver.publish({topic:"/foo/bar", payload:'foo'}, client);
+        mqttserver.publish({topic:"MINERS", payload:'foo'}, client);
+        //client.publish({topic:"MINERS", payload:'foo'});
+        setInterval(function(){},1000);
+        //mqttserver.publish({topic:"REQUEST_USE", payload:'foo'}, client);
     }else{
         console.log("Node ",client.id," not exist");
         //mqttserver.disconnect(client);
@@ -2070,6 +2073,11 @@ mqttserver.on('clientConnected', function (client) {
 
 mqttserver.on('published', function (packet, client) {
     console.log("Published :=", packet);
+    if (packet.topic=="INFO"){
+    console.log('Client \t:= ', client.id,' @ ',packet.payload);
+    smartContract.update_adresses(smartContract.toHexString(packet.payload),client.id,__dirname+'/tmp/node/adresses.json');
+    smartContract.broadcast_publicKey(__dirname+'/tmp/node/adresses.json',smartContract.toHexString(packet.payload),client.id,__dirname+'/tmp/node/config.json')
+    }
 });
 function unicodeStringToTypedArray(s) {
     var escstr = encodeURIComponent(s);
@@ -2084,9 +2092,7 @@ function unicodeStringToTypedArray(s) {
 }
 mqttserver.on('subscribed', function (topic, client) {
     console.log("Subscribed :=", client.packet);
-    smartContract.update_adresses(smartContract.toHexString(unicodeStringToTypedArray(topic)),client.id,__dirname+'/tmp/node/adresses.json');
-    smartContract.broadcast_publicKey(__dirname+'/tmp/node/adresses.json',smartContract.toHexString(unicodeStringToTypedArray(topic)),client.id,__dirname+'/tmp/node/config.json')
-});
+    });
 
 mqttserver.on('unsubscribed', function (topic, client) {
     console.log('unsubscribed := ', topic);

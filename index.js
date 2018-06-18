@@ -1058,15 +1058,10 @@ var onstart = function(node) {
             var json = JSON.stringify(obj);
             fs.writeFileSync(file, json, 'utf8');
     }*/
-<<<<<<< HEAD
     receiveNewNode(9000);
 
 
                 
-=======
-
-    receiveNewNode(9000);             
->>>>>>> ef46ce051823bee1c31cc70ada1565b3312cd10f
 };
 
 function receiveNewNode(port){
@@ -1377,18 +1372,14 @@ var router = express.Router();
         var fileAdresses = __dirname+'/tmp/node/adresses.json';
         
         request = {
-                ip : getClientIp(req),
-                requester :req.body.requester,
-                requested : req.body.requested,
-                action : req.body.action,
-<<<<<<< HEAD
-                type : req.body.type,
-                value : req.body.value,
-                //conditions : '',
-                //obligations : '',
-=======
-                conditions : '',
-                obligations : '',
+            ip : getClientIp(req),
+            requester :req.body.requester,
+            requested : req.body.requested,
+            action : req.body.action,
+            type : req.body.type,
+            value : req.body.value,
+            //conditions : '',
+            //obligations : '',
             };
        
             var i=0;
@@ -1396,7 +1387,6 @@ var router = express.Router();
             i++;
             if(i==2){
                 requestTmp = 'ok';
->>>>>>> ef46ce051823bee1c31cc70ada1565b3312cd10f
             }
             if(requestTmp != ''){
                 console.log('Send to response');
@@ -1407,11 +1397,6 @@ var router = express.Router();
 
         // Broadcast request to execute Action
         broadcast_request(fileAdresses,get_publicKey_node(fileConfig),request,fileConfig);
-<<<<<<< HEAD
-=======
-            
-    });
->>>>>>> ef46ce051823bee1c31cc70ada1565b3312cd10f
 
     });
     function getClientIp(req) {
