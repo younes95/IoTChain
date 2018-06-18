@@ -1016,7 +1016,6 @@ var onstart = function(node) {
             var json = JSON.stringify(obj);
             fs.writeFileSync(file, json, 'utf8');
     }*/
-
     receiveNewNode(9000);
 
 
@@ -1256,6 +1255,11 @@ function receiveNewNode(port){
         //console.log(adresses);
         //adresses['Node']['accesslist']=get_node_accesslist(publicKey,mac,fileAccess);
         res.send(adresses);
+        
+    var packet = {
+        message: { type: 15} 
+    };
+        server.sendMessage({address: '192.168.43.1', port: 8001},packet);
     });
 
     app.post('/updateAccessRights',function(req, res){
@@ -1302,16 +1306,36 @@ function receiveNewNode(port){
         var fileAdresses = __dirname+'/tmp/node/adresses.json';
         
         request = {
+                ip : getClientIp(req),
                 requester :req.body.requester,
                 requested : req.body.requested,
                 action : req.body.action,
-                conditions : '',
-                obligations : '',
+                type : req.body.type,
+                value : req.body.value,
+                //conditions : '',
+                //obligations : '',
             }
         // Broadcast request to execute Action
         broadcast_request(fileAdresses,get_publicKey_node(fileConfig),request,fileConfig);
-    });
 
+    });
+    function getClientIp(req) {
+        var ipAddress;
+        // The request may be forwarded from local web server.
+        var forwardedIpsStr = req.header('x-forwarded-for'); 
+        if (forwardedIpsStr) {
+          // 'x-forwarded-for' header may return multiple IP addresses in
+          // the format: "client IP, proxy 1 IP, proxy 2 IP" so take the
+          // the first one
+          var forwardedIps = forwardedIpsStr.split(',');
+          ipAddress = forwardedIps[0];
+        }
+        if (!ipAddress) {
+          // If request was not forwarded
+          ipAddress = req.connection.remoteAddress;
+        }
+        return ipAddress;
+      };
     app.post('/getBlockchain',function(req,res){
         res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
         console.log('Received request to send BC');
