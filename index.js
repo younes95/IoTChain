@@ -646,8 +646,10 @@ var onmessage = function(payload) {
         var keyPublic= message.publicKey;
         var shaMsg = new Buffer(message.shaMsg,'hex');
         var public = new Buffer(message.public,'hex');
+
         var signature = new Buffer(message.signature,'hex');
         var ec = new EC("secp256k1");
+        console.log
         const asn1signature = concatSigToAsn1Sig(signature);
         var isValid = ec.verify(shaMsg, asn1signature, public)
     
@@ -730,7 +732,6 @@ var onmessage = function(payload) {
                                         }
                                         i++;
                                     }
-                                    console.log(objFound);
                                     mqttserver.publish({topic: message.request.type, payload: message.request.value},objFound);
                               //  }
                                 /*****/
@@ -1392,7 +1393,7 @@ function receiveNewNode(port){
         console.log('Received request to send User');
         var ipRequest = getClientIp(req).slice(getClientIp(req).lastIndexOf(':')+1);
    
-        if (get_node_info_by_ip(ipRequest,fileAdresses).table.length>0){
+    //    if (get_node_info_by_ip(ipRequest,fileAdresses).table.length>0){
         var util = require('util');
         
         var nodes = [];
@@ -1406,12 +1407,12 @@ function receiveNewNode(port){
         //console.log(adresses);
       //  adresses['Node']['accesslist']=get_node_accesslist(publicKey,mac,fileAccess);
         res.send(adresses);
-                }
+             /*   }
                 else
                 {
                     res.send("Permission non accordée");
                     console.log("ip :",ipRequest," Non autorisé pour cette action");
-                }
+                }*/
     });
 
     app.post('/updateAccessRights',function(req, res){
@@ -2644,9 +2645,11 @@ mqttserver.on('published', function (packet, client) {
     //console.log("Published :=", packet);
     if (packet.topic=="INFO"){
     console.log('Client \t:= ', client.id,' @ ',packet.payload, " Address updated");
-    smartContract.update_adresses(smartContract.toHexString(packet.payload),client.id,__dirname+'/tmp/node/adresses.json');
-    smartContract.broadcast_publicKey(__dirname+'/tmp/node/adresses.json',smartContract.toHexString(packet.payload),client.id,__dirname+'/tmp/node/config.json')
+    if(existNodeMacAdr(client.id,__dirname+'/tmp/node/adresses.json')){
+        update_adresses(toHexString(packet.payload),client.id,__dirname+'/tmp/node/adresses.json');
+        broadcast_publicKey(__dirname+'/tmp/node/adresses.json',toHexString(packet.payload),client.id,__dirname+'/tmp/node/config.json')
     }
+     }
     if (packet.topic=="Temp"){
                                 value=packet.payload;
                                 /******/
