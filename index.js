@@ -2651,9 +2651,9 @@ mqttserver.on('published', function (packet, client) {
     }
      }
     if (packet.topic=="Temp"){
-                                value=packet.payload;
+                                var value=packet.payload;
                                 /******/
-                                
+                                console.log("Temp recieved : ", value);
                                 var dataResponse=fs.readFileSync(fileResponse, 'utf8');
 
                                 if(dataResponse.length != 0 ){
