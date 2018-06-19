@@ -719,7 +719,7 @@ var onmessage = function(payload) {
                                 bool = true;
                                 var insertTx=insert_Transaction(objTmp.table[i].Transaction,fileData);
                                 // Inform the two node that the access is granted
-                               // if(objTmp.table[i].Transaction.token != null){
+                             //   if(objTmp.table[i].Transaction.token != null){
                                     
                                     var cli_mac=get_node_info_by_adr(message.request.requested,fileAdresses).table[0].mac;
                                     var bool = false;
@@ -1162,7 +1162,6 @@ function receiveNewNode(port){
             var bool=existNodeMacAdr(mac,fileAdresses);
             
             var response = 'FAIL';
-            console.log(mac);
             if(bool == false) {
                 //node doesn't exist , save it
                 port=objReceived.port;
@@ -2651,7 +2650,8 @@ mqttserver.on('published', function (packet, client) {
     }
      }
     if (packet.topic=="Temp"){
-                                var value=packet.payload;
+                                var value=toHexString(packet.payload);
+                                console.log(packet);
                                 /******/
                                 console.log("Temp recieved : ", value);
                                 var dataResponse=fs.readFileSync(fileResponse, 'utf8');
