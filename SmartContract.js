@@ -685,39 +685,39 @@ SmartContract.prototype.existNodeMacAdr = function (mac,fileAdresses){
 }
 
 SmartContract.prototype.broadcast_publicKey = function (fileAdresses,publicKey,macadr,fileConfig){
-    var objAdresses = {
-        table: []
-        };
-
-    var dataAdresses=fs.readFileSync(fileAdresses, 'utf8');
-    var bool= false;
-    if(dataAdresses.length != 0 ){
-        objAdresses = JSON.parse(dataAdresses);
-
-        for(var i=0;i<Object.keys(objAdresses.table).length;i++){
-            //Test if node is miner
-            if(objAdresses.table[i].Node.role == 'miner'){
-                var nodeInfo=this.get_node_info(fileConfig);
-                var str = publicKey+''+macadr;
-                var privateKey = new Buffer(nodeInfo.Key.privateKey,'hex');
-                var ec = new EC("secp256k1");
-                var shaMsg = crypto.createHash("sha256").update(str).digest();
-                var mySign = ec.sign(shaMsg, privateKey, {canonical: true});
-                var signature = this.asn1SigSigToConcatSig(mySign);
-                
-                var packet = {
-                    from: {
-                        address: nodeInfo.Server.IP,
-                        port: nodeInfo.Server.port ,
-                        id: server.id
-                        },
-                    message: { type: 11, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: nodeInfo.Key.publicKey, mac : macadr, signature : signature, shaMsg : shaMsg } 
-                };
-                server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
+        var objAdresses = {
+            table: []
+            };
+    
+        var dataAdresses=fs.readFileSync(fileAdresses, 'utf8');
+        var bool= false;
+        if(dataAdresses.length != 0 ){
+            objAdresses = JSON.parse(dataAdresses);
+    
+            for(i=0;i<Object.keys(objAdresses.table).length;i++){
+                //Test if node is miner
+                if(objAdresses.table[i].Node.role == 'miner'){
+                    nodeInfo=get_node_info(fileConfig);
+                    var str = publicKey+''+macadr;
+                    var privateKey = new Buffer(nodeInfo.Key.privateKey,'hex');
+                    var ec = new EC("secp256k1");
+                    var shaMsg = crypto.createHash("sha256").update(str).digest();
+                    var mySign = ec.sign(shaMsg, privateKey, {canonical: true});
+                    var signature = asn1SigSigToConcatSig(mySign);
+                    
+                    var packet = {
+                        from: {
+                            address: nodeInfo.Server.IP,
+                            port: nodeInfo.Server.port ,
+                            id: server.id
+                            },
+                        message: { type: 11, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: publicKey, public : nodeInfo.Key.publicKey, mac : macadr, signature : signature, shaMsg : shaMsg } 
+                    };
+                    server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
+                }
             }
         }
     }
-}
 
 SmartContract.prototype.update_adresses = function (publicKey,mac,fileAdresses){
     var objAdresses = {
