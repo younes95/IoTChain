@@ -6,18 +6,10 @@ var crypto = require("crypto");
 var eccrypto = require("eccrypto");
 var elliptic = require("elliptic");
 var EC = elliptic.ec;
-<<<<<<< HEAD
-require('json-decycle').extend(JSON)
+
  var requestTmp = ''; 
  var send = false;
  var nbReq=0;
-JSON.decycle === require('json-decycle').decycle
-JSON.retrocycle === require('json-decycle').retrocycle
-const fileResponse = __dirname+'/tmp/node/sendResponse.json';
-=======
-var requestTmp = ''; 
-
->>>>>>> ce89b299d2b89d221d96709769354e76ee6cc091
 
 // Import genesis block
 var block = require('./libs/genesis');
@@ -1277,64 +1269,64 @@ function receiveNewNode(port){
         var fileMiner= __dirname+'/tmp/node/miner.json';
         objReceived=req.body;
         var jsonfile = require('jsonfile');
-        var adrMac = require('os').networkInterfaces().wlan0[0].mac;
+        arp.getMAC(req.body.ipadr, function(err, adrMac) {
+            var trust;
+            if(req.body.role == 'miner') trust = 0;
+            if(req.body.role == 'ressource') trust = 3;
+            if(req.body.role == 'user') trust = 5;
 
-        var trust;
-        if(req.body.role == 'miner') trust = 0;
-        if(req.body.role == 'ressource') trust = 3;
-        if(req.body.role == 'user') trust = 5;
+            configNode(req.body.ipadr,adrMac,req.body.role,req.body.port,trust,fileConfig);
+            if(req.body.first == 'true'){
+                var config = require('./config.js');
+                var block = new Block(config.genesis);
+                var obj = {
+                    table: []
+                };
+                // Store the genesis block in the file 
+                var data=fs.readFileSync(file, 'utf8');
+                if(data.length == 0){
+                    obj.table.push({Block : block});
+                    var json = JSON.stringify(obj);
+                    fs.writeFileSync(file, json, 'utf8');
+                }
+                
+                // Generate keypair for the node  
+                var privateKey = crypto.randomBytes(32);
+                var publicKey = eccrypto.getPublic(privateKey);
+                // Generate keypair
+                var dataConfig=fs.readFileSync(fileConfig, 'utf8');
+                if(dataConfig.length != 0){
+                    objConfig = JSON.parse(dataConfig);
 
-        configNode(req.body.ipadr,adrMac,req.body.role,req.body.port,trust,fileConfig);
-        if(req.body.first == 'true'){
-            var config = require('./config.js');
-            var block = new Block(config.genesis);
-            var obj = {
-                table: []
-            };
-            // Store the genesis block in the file 
-            var data=fs.readFileSync(file, 'utf8');
-            if(data.length == 0){
-                obj.table.push({Block : block});
-                var json = JSON.stringify(obj);
-                fs.writeFileSync(file, json, 'utf8');
+                    objConfig.table[0].Key.publicKey = toHexString(publicKey);
+                    objConfig.table[0].Key.privateKey = toHexString(privateKey);
+                
+                    // Fill in the file config of the node
+
+                    var jsonConfig = JSON.stringify(objConfig);
+                    fs.writeFileSync(fileConfig, jsonConfig, 'utf8');
+                }
+                saveNode(toHexString(publicKey),req.body.ipadr,req.body.port,adrMac,req.body.ipadr,req.body.role,trust,fileAdresses);
+                
+                var dataMiner=fs.readFileSync(fileMiner, 'utf8');
+                objMiner = {
+                    table : []
+                }
+                var tabAdr = [];
+                tabAdr.push(toHexString(publicKey));
+                objMiner.table.push({adr : toHexString(publicKey), myTurn : true, tabAdr : tabAdr});
+                var jsonMiner = JSON.stringify(objMiner);
+                fs.writeFileSync(fileMiner, jsonMiner, 'utf8');
+                setInterval(function() {
+                    switch_elected_miner(fileMiner,fileConfig,fileAdresses);
+                }, 15000);
+            }else{
+                saveNodeMacAdr(req.body.ipadr,req.body.port,adrMac,req.body.ipadr,req.body.role,trust,fileAdresses);
             }
-            
-            // Generate keypair for the node  
-            var privateKey = crypto.randomBytes(32);
-            var publicKey = eccrypto.getPublic(privateKey);
-            // Generate keypair
-            var dataConfig=fs.readFileSync(fileConfig, 'utf8');
-            if(dataConfig.length != 0){
-                objConfig = JSON.parse(dataConfig);
 
-                objConfig.table[0].Key.publicKey = toHexString(publicKey);
-                objConfig.table[0].Key.privateKey = toHexString(privateKey);
             
-                // Fill in the file config of the node
-
-                var jsonConfig = JSON.stringify(objConfig);
-                fs.writeFileSync(fileConfig, jsonConfig, 'utf8');
-            }
-            saveNode(toHexString(publicKey),req.body.ipadr,req.body.port,adrMac,req.body.ipadr,req.body.role,trust,fileAdresses);
-            
-            var dataMiner=fs.readFileSync(fileMiner, 'utf8');
-            objMiner = {
-                table : []
-            }
-            var tabAdr = [];
-            tabAdr.push(toHexString(publicKey));
-            objMiner.table.push({adr : toHexString(publicKey), myTurn : true, tabAdr : tabAdr});
-            var jsonMiner = JSON.stringify(objMiner);
-            fs.writeFileSync(fileMiner, jsonMiner, 'utf8');
-            setInterval(function() {
-                switch_elected_miner(fileMiner,fileConfig,fileAdresses);
-            }, 15000);
-        }else{
-            saveNodeMacAdr(req.body.ipadr,req.body.port,adrMac,req.body.ipadr,req.body.role,trust,fileAdresses);
-        }
-
-        
-        res.send({statut : 'SUCCESS'});
+            res.send({statut : 'SUCCESS'});
+        });
     });
 
     app.post('/generateUse',function(req, res){
