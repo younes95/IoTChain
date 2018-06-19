@@ -6,18 +6,12 @@ var crypto = require("crypto");
 var eccrypto = require("eccrypto");
 var elliptic = require("elliptic");
 var EC = elliptic.ec;
-<<<<<<< HEAD
-require('json-decycle').extend(JSON)
+
  var requestTmp = ''; 
  var send = false;
  var nbReq=0;
-JSON.decycle === require('json-decycle').decycle
-JSON.retrocycle === require('json-decycle').retrocycle
-const fileResponse = __dirname+'/tmp/node/sendResponse.json';
-=======
-var requestTmp = ''; 
 
->>>>>>> ce89b299d2b89d221d96709769354e76ee6cc091
+const fileResponse = __dirname+'/tmp/node/sendResponse.json';
 
 // Import genesis block
 var block = require('./libs/genesis');
@@ -719,29 +713,15 @@ var onmessage = function(payload) {
                                 bool = true;
                                 var insertTx=insert_Transaction(objTmp.table[i].Transaction,fileData);
                                 // Inform the two node that the access is granted
-
-                                value="30";
-                                /******/
                                 console.log(message.request.type);
                                 console.log(message.request.value);
-                                var dataResponse=fs.readFileSync(fileResponse, 'utf8');
+                                var cli_mac=get_node_info_by_adr(message.requested,fileAdresses).table[0].MAC;
+                                var cli=mqttserver.clients.filter(function(item){
+                                    return (item==cli_mac);
+                                });
 
-                                if(dataResponse.length != 0 ){
-                                    var objResponse = JSON.parse(dataResponse);
-                                    requestTmpFile = objResponse.requestTmp;
-                                    sendFile = objResponse.send;
-                                    if(sendFile == false){
-                                    requestTmp=value;
-                                    send = true;
-                                    var objResponse = {
-                                        requestTmp : requestTmp,
-                                        send : send
-                                    }
-
-                                    var jsonResponse = JSON.stringify(objResponse);
-                                    fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
-                                    }  
-                                }
+                                mqttserver.publish({topic: message.request.type, payload: message.request.value},JSON.parse(cli));
+                                
                                 /*****/
                                 console.timeEnd("Transaction generated, validated and inserted");
                                 broadcast_response(fileAdresses,objTmp.table[i].Transaction.hash,get_publicKey_node(fileConfig),'valid',fileConfig,insertTx,objTmp.table[i].tabProof,value);
@@ -1377,10 +1357,14 @@ function receiveNewNode(port){
     });
 
     app.post('/getAllNode',function(req, res){
-        console.log('Received request to send User');
-        var util = require('util');
         var fileAdresses = __dirname+'/tmp/node/adresses.json';
         var fileAccess = __dirname+'/tmp/node/list.json';
+        console.log('Received request to send User');
+        var ipRequest = getClientIp(req).slice(getClientIp(req).lastIndexOf(':')+1);
+   
+        if (get_node_info_by_ip(ipRequest,fileAdresses).table.length>0){
+        var util = require('util');
+        
         var nodes = [];
         nodes=get_all_node(fileAdresses);
         var adresses = [];
@@ -1392,7 +1376,12 @@ function receiveNewNode(port){
         //console.log(adresses);
       //  adresses['Node']['accesslist']=get_node_accesslist(publicKey,mac,fileAccess);
         res.send(adresses);
-        
+    }
+    else
+    {
+        res.send("Permission non accordée");
+        console.log("ip :",ipRequest," Non autorisé pour cette action");
+    }
     });
 
     app.post('/updateAccessRights',function(req, res){
@@ -1448,7 +1437,7 @@ function receiveNewNode(port){
 
          var ipRequest = getClientIp(req).slice(getClientIp(req).lastIndexOf(':')+1);
         
-
+        console.log("nodeinfo :",get_node_info_by_ip(ipRequest,fileAdresses));
         request = {
             ip : getClientIp(req),
             requester : get_node_info_by_ip(ipRequest,fileAdresses).table[0].adr,
@@ -2620,11 +2609,34 @@ mqttserver.on('clientConnected', function (client) {
 });
 
 mqttserver.on('published', function (packet, client) {
-    console.log("Published :=", packet);
+    //console.log("Published :=", packet);
     if (packet.topic=="INFO"){
-    //console.log('Client \t:= ', client.id,' @ ',packet.payload);
+    console.log('Client \t:= ', client.id,' @ ',packet.payload, " Address updated");
     smartContract.update_adresses(smartContract.toHexString(packet.payload),client.id,__dirname+'/tmp/node/adresses.json');
     smartContract.broadcast_publicKey(__dirname+'/tmp/node/adresses.json',smartContract.toHexString(packet.payload),client.id,__dirname+'/tmp/node/config.json')
+    }
+    if (packet.topic=="Temp"){
+                                value=packet.payload;
+                                /******/
+                                
+                                var dataResponse=fs.readFileSync(fileResponse, 'utf8');
+
+                                if(dataResponse.length != 0 ){
+                                    var objResponse = JSON.parse(dataResponse);
+                                    requestTmpFile = objResponse.requestTmp;
+                                    sendFile = objResponse.send;
+                                    if(sendFile == false){
+                                    requestTmp=value;
+                                    send = true;
+                                    var objResponse = {
+                                        requestTmp : requestTmp,
+                                        send : send
+                                    }
+
+                                    var jsonResponse = JSON.stringify(objResponse);
+                                    fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
+                                    }  
+                                }
     }
 });
 function unicodeStringToTypedArray(s) {
@@ -2639,12 +2651,12 @@ function unicodeStringToTypedArray(s) {
     return ua;
 }
 mqttserver.on('subscribed', function (topic, client) {
+    
     if (topic=="MINERS"){
-        console.log("Subscribed IN MINERS TOPIC");
         mqttserver.publish({topic:"MINERS", payload:'foo'}, client);
     }
 
-    console.log("Subscribed :=", client.packet);
+    console.log(client.id," Subscribed in ", topic," topic");
     });
 
 mqttserver.on('unsubscribed', function (topic, client) {
