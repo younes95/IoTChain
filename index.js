@@ -2648,9 +2648,9 @@ mqttserver.on('published', function (packet, client) {
     smartContract.broadcast_publicKey(__dirname+'/tmp/node/adresses.json',smartContract.toHexString(packet.payload),client.id,__dirname+'/tmp/node/config.json')
     }
     if (packet.topic=="Temp"){
-                                value=packet.payload;
+                                var value=packet.payload;
                                 /******/
-                                
+                                console.log("Temp recieved : ", value);
                                 var dataResponse=fs.readFileSync(fileResponse, 'utf8');
 
                                 if(dataResponse.length != 0 ){
