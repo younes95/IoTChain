@@ -1256,6 +1256,7 @@ function receiveNewNode(port){
         var fileMiner= __dirname+'/tmp/node/miner.json';
         objReceived=req.body;
         var jsonfile = require('jsonfile');
+        var arp = require('node-arp');
         arp.getMAC(req.body.ipadr, function(err, adrMac) {
             var trust;
             if(req.body.role == 'miner') trust = 0;
