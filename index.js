@@ -655,6 +655,7 @@ var onmessage = function(payload) {
             update_access_list(keyPublic,mac,fileAccess);
             //Update adresses list
             update_adresses(keyPublic,mac,fileAdresses);
+            console.log(mac);
             data = get_node_info_by_adr(keyPublic,fileAdresses);
             
             if(data.table[0].role == 'miner'){
@@ -1256,6 +1257,7 @@ function receiveNewNode(port){
         var fileMiner= __dirname+'/tmp/node/miner.json';
         objReceived=req.body;
         var jsonfile = require('jsonfile');
+        var arp = require('node-arp');
         arp.getMAC(req.body.ipadr, function(err, adrMac) {
             var trust;
             if(req.body.role == 'miner') trust = 0;
@@ -1361,7 +1363,7 @@ function receiveNewNode(port){
         console.log('Received request to send User');
         var ipRequest = getClientIp(req).slice(getClientIp(req).lastIndexOf(':')+1);
    
-        if (get_node_info_by_ip(ipRequest,fileAdresses).table.length>0){
+       // if (get_node_info_by_ip(ipRequest,fileAdresses).table.length>0){
         var util = require('util');
         
         var nodes = [];
@@ -1375,12 +1377,12 @@ function receiveNewNode(port){
         //console.log(adresses);
       //  adresses['Node']['accesslist']=get_node_accesslist(publicKey,mac,fileAccess);
         res.send(adresses);
-    }
+ /*   }
     else
     {
         res.send("Permission non accordée");
         console.log("ip :",ipRequest," Non autorisé pour cette action");
-    }
+    }*/
     });
 
     app.post('/updateAccessRights',function(req, res){
