@@ -345,7 +345,8 @@ var onmessage = function(payload) {
         var nodeInfo=get_node_info(fileConfig);
         boolAccess=QueryPermission(fileAccess,fileAdresses,request.requester,request.requested,request.action,request.conditions,request.obligations);
         
-        if(minerTurn(fileMiner) == true){
+        //if(minerTurn(fileMiner) == true){
+
             console.time("Transaction generated, validated and inserted");
    
             var transaction_request = new TransactionRequest();
@@ -381,7 +382,7 @@ var onmessage = function(payload) {
             }
             broadcast_transaction(fileAdresses,transaction_request,'request',get_publicKey_node(fileConfig),fileConfig,message.request);
           //  console.log(tmp);
-        }
+//        }
         if(boolAccess == false){
             console.log('Access refused');
             var dataResponse=fs.readFileSync(fileResponse, 'utf8');
@@ -565,6 +566,7 @@ var onmessage = function(payload) {
             publicKey = objConfig.table[0].Key.publicKey;
             update_adresses(publicKey,macadr,fileAdresses);
           //  update_access_list(publicKey,mac,fileAdresses)
+            console.log(objConfig.table);
             broadcast_publicKey(fileAdresses,publicKey,macadr,fileConfig);
         }else{
             console.log('Non valid signature');
@@ -713,15 +715,31 @@ var onmessage = function(payload) {
                                 bool = true;
                                 var insertTx=insert_Transaction(objTmp.table[i].Transaction,fileData);
                                 // Inform the two node that the access is granted
-                                console.log(message.request.type);
-                                console.log(message.request.value);
-                                var cli_mac=get_node_info_by_adr(message.requested,fileAdresses).table[0].MAC;
-                                var cli=mqttserver.clients.filter(function(item){
-                                    return (item==cli_mac);
-                                });
+                               // if(objTmp.table[i].Transaction.token != null){
+                                    console.log(get_node_info_by_adr(message.request.requested,fileAdresses).table)
+                                    console.log(get_node_info_by_adr(message.request.requested,fileAdresses).table[0].MAC);
+                                    var cli_mac=get_node_info_by_adr(message.request.requested,fileAdresses).table[0].MAC;
+                                    var bool = false;
+                                    var i=0;
+                                    var objFound;
+                                    console.log(cli_mac);
+                                    console.log(Object.keys(mqttserver.clients).length);
+                                    while(i < Object.keys(mqttserver.clients).length && bool == false){
 
-                                mqttserver.publish({topic: message.request.type, payload: message.request.value},JSON.parse(cli));
-                                
+                                       if(Object.keys(mqttserver.clients)[i] == cli_mac){
+                                            objFound = mqttserver.clients[Object.keys(mqttserver.clients)[i]];
+                                            console.log('found');
+                                            bool = true;
+                                        }
+                                        i++;
+                                    }
+                                    console.log(objFound);
+                                    var cli=mqttserver.clients.filter(function(item){
+                                        return (item==cli_mac);
+                                    });
+
+                                    mqttserver.publish({topic: message.request.type, payload: message.request.value},JSON.parse(cli));
+                              //  }
                                 /*****/
                                 console.timeEnd("Transaction generated, validated and inserted");
                                 broadcast_response(fileAdresses,objTmp.table[i].Transaction.hash,get_publicKey_node(fileConfig),'valid',fileConfig,insertTx,objTmp.table[i].tabProof,value);
@@ -1105,8 +1123,6 @@ var onstart = function(node) {
             fs.writeFileSync(file, json, 'utf8');
     }*/
     receiveNewNode(9000);
-
-
                 
 };
 
@@ -1152,7 +1168,7 @@ function receiveNewNode(port){
             var bool=existNodeMacAdr(mac,fileAdresses);
             
             var response = 'FAIL';
-
+            console.log(mac);
             if(bool == false) {
                 //node doesn't exist , save it
                 port=objReceived.port;
@@ -1258,12 +1274,21 @@ function receiveNewNode(port){
         objReceived=req.body;
         var jsonfile = require('jsonfile');
         var arp = require('node-arp');
-        arp.getMAC(req.body.ipadr, function(err, adrMac) {
+        console.log(req.body.ipadr);
+
+        if(process.platform === 'win32'){
+            var adrMac = require('os').networkInterfaces()['Wi-Fi'][0].address;
+        }else{
+            var adrMac = require('os').networkInterfaces().wlan0[0].mac;   
+        }
+  
             var trust;
             if(req.body.role == 'miner') trust = 0;
             if(req.body.role == 'ressource') trust = 3;
             if(req.body.role == 'user') trust = 5;
-
+            
+            
+           
             configNode(req.body.ipadr,adrMac,req.body.role,req.body.port,trust,fileConfig);
             if(req.body.first == 'true'){
                 var config = require('./config.js');
@@ -1310,12 +1335,13 @@ function receiveNewNode(port){
                     switch_elected_miner(fileMiner,fileConfig,fileAdresses);
                 }, 15000);
             }else{
+
                 saveNodeMacAdr(req.body.ipadr,req.body.port,adrMac,req.body.ipadr,req.body.role,trust,fileAdresses);
             }
 
-            
+            console.log(adrMac); 
             res.send({statut : 'SUCCESS'});
-        });
+        
     });
 
     app.post('/generateUse',function(req, res){
@@ -1377,12 +1403,12 @@ function receiveNewNode(port){
         //console.log(adresses);
       //  adresses['Node']['accesslist']=get_node_accesslist(publicKey,mac,fileAccess);
         res.send(adresses);
- /*   }
-    else
-    {
-        res.send("Permission non accordée");
-        console.log("ip :",ipRequest," Non autorisé pour cette action");
-    }*/
+             /*   }
+                else
+                {
+                    res.send("Permission non accordée");
+                    console.log("ip :",ipRequest," Non autorisé pour cette action");
+                }*/
     });
 
     app.post('/updateAccessRights',function(req, res){
@@ -1752,7 +1778,7 @@ function configNode(ip,mac,role,port,trust,fileConfig){
     var obj = {
             table: []
         };
-       
+       console.log(mac);
     obj.table.push({Server :{host : 'localhost',port : port, IP : ip, MAC : mac }, Key : {publicKey : '',privateKey : ''}, Role : {desc : role}});
     var jsonConfig = JSON.stringify(obj);
     fs.writeFileSync(fileConfig, jsonConfig, 'utf8');
@@ -1865,7 +1891,7 @@ function broadcast_transaction(fileAdresses,transaction,type,publicKey,fileConfi
             var signature = asn1SigSigToConcatSig(mySign);
             
             //Test if node is miner
-            if(objAdresses.table[i].Node.role == 'miner' && objAdresses.table[i].Node.adr != publicKey){
+            if(objAdresses.table[i].Node.role == 'miner'){// && objAdresses.table[i].Node.adr != publicKey){
                 
                 var packet = {
                     from: {
