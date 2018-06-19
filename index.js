@@ -345,8 +345,12 @@ var onmessage = function(payload) {
         var nodeInfo=get_node_info(fileConfig);
         boolAccess=QueryPermission(fileAccess,fileAdresses,request.requester,request.requested,request.action,request.conditions,request.obligations);
         
-        //if(minerTurn(fileMiner) == true){
-
+        if(process.platform === 'win32'){
+            var adrMacTurn = require('os').networkInterfaces()['Wi-Fi'][0].address;
+        }else{
+            var adrMacTurn = require('os').networkInterfaces().wlan0[0].mac;   
+        }
+        if(adrMacTurn == 'b8:27:eb:86:51:88'){
             console.time("Transaction generated, validated and inserted");
    
             var transaction_request = new TransactionRequest();
@@ -382,7 +386,7 @@ var onmessage = function(payload) {
             }
             broadcast_transaction(fileAdresses,transaction_request,'request',get_publicKey_node(fileConfig),fileConfig,message.request);
           //  console.log(tmp);
-//        }
+        }
         if(boolAccess == false){
             console.log('Access refused');
             var dataResponse=fs.readFileSync(fileResponse, 'utf8');
@@ -641,23 +645,21 @@ var onmessage = function(payload) {
         console.log('Receiving publicKey');
         var keyPublic= message.publicKey;
         var shaMsg = new Buffer(message.shaMsg,'hex');
-        var publicKey = new Buffer(message.publicKey,'hex');
+        var public = new Buffer(message.public,'hex');
         var signature = new Buffer(message.signature,'hex');
         var ec = new EC("secp256k1");
         const asn1signature = concatSigToAsn1Sig(signature);
-        var isValid = ec.verify(shaMsg, asn1signature, publicKey)
+        var isValid = ec.verify(shaMsg, asn1signature, public)
     
         if(isValid){
             var fileAdresses = __dirname + '/tmp/node/adresses.json';
             var fileAccess = __dirname + '/tmp/node/list.json';
             var fileMiner = __dirname+'/tmp/node/miner.json';
-            
             mac = message.mac;
             //Update access list
             update_access_list(keyPublic,mac,fileAccess);
             //Update adresses list
             update_adresses(keyPublic,mac,fileAdresses);
-            console.log(mac);
             data = get_node_info_by_adr(keyPublic,fileAdresses);
             
             if(data.table[0].role == 'miner'){
@@ -716,33 +718,24 @@ var onmessage = function(payload) {
                                 var insertTx=insert_Transaction(objTmp.table[i].Transaction,fileData);
                                 // Inform the two node that the access is granted
                                // if(objTmp.table[i].Transaction.token != null){
-                                    console.log(get_node_info_by_adr(message.request.requested,fileAdresses).table)
-                                    console.log(get_node_info_by_adr(message.request.requested,fileAdresses).table[0].MAC);
-                                    var cli_mac=get_node_info_by_adr(message.request.requested,fileAdresses).table[0].MAC;
+                                    
+                                    var cli_mac=get_node_info_by_adr(message.request.requested,fileAdresses).table[0].mac;
                                     var bool = false;
                                     var i=0;
                                     var objFound;
-                                    console.log(cli_mac);
-                                    console.log(Object.keys(mqttserver.clients).length);
                                     while(i < Object.keys(mqttserver.clients).length && bool == false){
-
                                        if(Object.keys(mqttserver.clients)[i] == cli_mac){
                                             objFound = mqttserver.clients[Object.keys(mqttserver.clients)[i]];
-                                            console.log('found');
                                             bool = true;
                                         }
                                         i++;
                                     }
                                     console.log(objFound);
-                                    var cli=mqttserver.clients.filter(function(item){
-                                        return (item==cli_mac);
-                                    });
-
-                                    mqttserver.publish({topic: message.request.type, payload: message.request.value},JSON.parse(cli));
+                                    mqttserver.publish({topic: message.request.type, payload: message.request.value},objFound);
                               //  }
                                 /*****/
                                 console.timeEnd("Transaction generated, validated and inserted");
-                                broadcast_response(fileAdresses,objTmp.table[i].Transaction.hash,get_publicKey_node(fileConfig),'valid',fileConfig,insertTx,objTmp.table[i].tabProof,value);
+                                broadcast_response(fileAdresses,objTmp.table[i].Transaction.hash,get_publicKey_node(fileConfig),'valid',fileConfig,insertTx,objTmp.table[i].tabProof,message.request.value);
                                 
                             }
                             if(objTmp.table[i].nb_node/2 <= objTmp.table[i].nb_reject){
@@ -915,10 +908,10 @@ var onmessage = function(payload) {
             }
             var jsonMiner = JSON.stringify(objMiner);
             fs.writeFileSync(fileMiner, jsonMiner, 'utf8');
-
+/*
             setInterval(function() {
                 switch_elected_miner(fileMiner,fileConfig,fileAdresses);
-            }, 15000);
+            }, 15000);*/
         }else{
             console.log('Non valid signature');
         }
@@ -966,10 +959,10 @@ var onstart = function(node) {
    
     console.timeEnd("Adding new node"); */   
 
-                start_elected_miner(fileMiner,fileConfig,fileAdresses);
+                /*start_elected_miner(fileMiner,fileConfig,fileAdresses);
         setInterval(function() {
                 switch_elected_miner(fileMiner,fileConfig,fileAdresses);
-            }, 15000);
+            }, 15000);*/
 
         /*console.log('Generation de clé ...')
         var privateKey = crypto.randomBytes(32);
@@ -1192,7 +1185,13 @@ function receiveNewNode(port){
                 objConfig = JSON.parse(dataConfig);
                 
                 response='SUCCESS';
-                if(role == 'miner'){// && minerTurn(fileMiner) == true){ // is the selected miner
+
+                if(process.platform === 'win32'){
+                    var adrMacTurn = require('os').networkInterfaces()['Wi-Fi'][0].address;
+                }else{
+                    var adrMacTurn = require('os').networkInterfaces().wlan0[0].mac;   
+                }
+                if(role == 'miner' &&  adrMacTurn == 'b8:27:eb:86:51:88'){// && minerTurn(fileMiner) == true){ // is the selected miner
                     
                     // Get the Blockchain 
                     
@@ -1242,15 +1241,19 @@ function receiveNewNode(port){
                     };
                     server.sendMessage({address: ip, port: port},packet);
                 }
-
-                if(role == 'user'&& minerTurn(fileMiner) == true){
+                if(process.platform === 'win32'){
+                    var adrMacTurn = require('os').networkInterfaces()['Wi-Fi'][0].address;
+                }else{
+                    var adrMacTurn = require('os').networkInterfaces().wlan0[0].mac;   
+                }
+                if(role == 'user' && adrMacTurn == 'b8:27:eb:86:51:88'){
                     console.log('Config node user');
                     // Generate keypair for the node  
-                    var privateKey = crypto.randomBytes(32);
-                    var publicKey = eccrypto.getPublic(privateKey);
-                    update_adresses(publicKey,mac,fileAdresses);
+                    var privateKeyUser = crypto.randomBytes(32);
+                    var publicKeyUser = eccrypto.getPublic(privateKeyUser);
+                    update_adresses(toHexString(publicKeyUser),mac,fileAdresses);
 
-                    broadcast_publicKey(fileAdresses,publicKey,mac,fileConfig);
+                    broadcast_publicKey(fileAdresses,toHexString(publicKeyUser),mac,fileConfig);
                 }
 
             }
@@ -1331,9 +1334,9 @@ function receiveNewNode(port){
                 objMiner.table.push({adr : toHexString(publicKey), myTurn : true, tabAdr : tabAdr});
                 var jsonMiner = JSON.stringify(objMiner);
                 fs.writeFileSync(fileMiner, jsonMiner, 'utf8');
-                setInterval(function() {
+             /*   setInterval(function() {
                     switch_elected_miner(fileMiner,fileConfig,fileAdresses);
-                }, 15000);
+                }, 15000);*/
             }else{
 
                 saveNodeMacAdr(req.body.ipadr,req.body.port,adrMac,req.body.ipadr,req.body.role,trust,fileAdresses);
@@ -1648,7 +1651,7 @@ function get_node_info_by_adr(adr,fileAdresses){
         for(i=0;i<Object.keys(objAdresses.table).length;i++){
             //Test adress mac and public key if exist
             if(objAdresses.table[i].Node.adr == adr){
-                data.table.push({ ip : objAdresses.table[i].Node.IP, port : objAdresses.table[i].Node.port, role : objAdresses.table[i].Node.role})
+                data.table.push({ ip : objAdresses.table[i].Node.IP, port : objAdresses.table[i].Node.port, role : objAdresses.table[i].Node.role, mac : objAdresses.table[i].Node.MAC})
             } 
         }
     }
@@ -1879,7 +1882,7 @@ function broadcast_transaction(fileAdresses,transaction,type,publicKey,fileConfi
     var bool= false;
     if(dataAdresses.length != 0 ){
         objAdresses = JSON.parse(dataAdresses);
-
+        var i=0;
         for(i=0;i<Object.keys(objAdresses.table).length;i++){
             nodeInfo = get_node_info(fileConfig);
             var str = JSON.stringify(transaction);
@@ -1891,17 +1894,19 @@ function broadcast_transaction(fileAdresses,transaction,type,publicKey,fileConfi
             var signature = asn1SigSigToConcatSig(mySign);
             
             //Test if node is miner
-            if(objAdresses.table[i].Node.role == 'miner'){// && objAdresses.table[i].Node.adr != publicKey){
-                
-                var packet = {
-                    from: {
-                        address: nodeInfo.Server.IP,
-                        port: nodeInfo.Server.port,
-                        id: server.id
-                        },
-                    message: { type: 10, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: nodeInfo.Key.publicKey, transaction : transaction, typeTransaction : type, shaMsg: shaMsg, signature : signature, request : request } 
-                };
-                server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
+            if(objAdresses.table[i].Node.role == 'miner' ){
+                if(get_nb_miner(fileAdresses) == 1  || objAdresses.table[i].Node.adr != publicKey){
+                   
+                    var packet = {
+                        from: {
+                            address: nodeInfo.Server.IP,
+                            port: nodeInfo.Server.port,
+                            id: server.id
+                            },
+                        message: { type: 10, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: nodeInfo.Key.publicKey, transaction : transaction, typeTransaction : type, shaMsg: shaMsg, signature : signature, request : request } 
+                    };
+                    server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
+                }
             }
         }
     }
@@ -2273,7 +2278,7 @@ function broadcast_publicKey(fileAdresses,publicKey,macadr,fileConfig){
                         port: nodeInfo.Server.port ,
                         id: server.id
                         },
-                    message: { type: 11, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: nodeInfo.Key.publicKey, mac : macadr, signature : signature, shaMsg : shaMsg } 
+                    message: { type: 11, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: publicKey, public : nodeInfo.Key.publicKey, mac : macadr, signature : signature, shaMsg : shaMsg } 
                 };
                 server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
             }
