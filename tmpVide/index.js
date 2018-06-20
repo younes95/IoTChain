@@ -327,7 +327,7 @@ var onmessage = function(payload) {
 
     // Receiving request to execute action
     if(message.type == 8){
-        console.log('Received request');
+        console.log('Receive request');
         var request=message.request;
         var fileAccess = __dirname+'/tmp/node/list.json';
         var fileAdresses = __dirname+'/tmp/node/adresses.json';
@@ -570,7 +570,7 @@ var onmessage = function(payload) {
             publicKey = objConfig.table[0].Key.publicKey;
             update_adresses(publicKey,macadr,fileAdresses);
           //  update_access_list(publicKey,mac,fileAdresses)
-          //  console.log(objConfig.table);
+            console.log(objConfig.table);
             broadcast_publicKey(fileAdresses,publicKey,macadr,fileConfig);
         }else{
             console.log('Non valid signature');
@@ -642,13 +642,14 @@ var onmessage = function(payload) {
 
     // Receiving publicKey 
     if(message.type == 11){
-        console.log('Received publicKey');
+        console.log('Receiving publicKey');
         var keyPublic= message.publicKey;
         var shaMsg = new Buffer(message.shaMsg,'hex');
         var public = new Buffer(message.public,'hex');
 
         var signature = new Buffer(message.signature,'hex');
         var ec = new EC("secp256k1");
+        console.log
         const asn1signature = concatSigToAsn1Sig(signature);
         var isValid = ec.verify(shaMsg, asn1signature, public)
     
@@ -658,7 +659,7 @@ var onmessage = function(payload) {
             var fileMiner = __dirname+'/tmp/node/miner.json';
             mac = message.mac;
             //Update access list
-            update_access_list(keyPublic,mac,fileAccess,fileAdresses);
+            update_access_list(keyPublic,mac,fileAccess);
             //Update adresses list
             update_adresses(keyPublic,mac,fileAdresses);
             data = get_node_info_by_adr(keyPublic,fileAdresses);
@@ -718,24 +719,24 @@ var onmessage = function(payload) {
                                 bool = true;
                                 var insertTx=insert_Transaction(objTmp.table[i].Transaction,fileData);
                                 // Inform the two node that the access is granted
-                                if(objTmp.table[i].Transaction.token != null){
+                             //   if(objTmp.table[i].Transaction.token != null){
                                     
                                     var cli_mac=get_node_info_by_adr(message.request.requested,fileAdresses).table[0].mac;
                                     var bool = false;
-                                    var j=0;
+                                    var i=0;
                                     var objFound;
                                     while(i < Object.keys(mqttserver.clients).length && bool == false){
-                                       if(Object.keys(mqttserver.clients)[j] == cli_mac){
-                                            objFound = mqttserver.clients[Object.keys(mqttserver.clients)[j]];
+                                       if(Object.keys(mqttserver.clients)[i] == cli_mac){
+                                            objFound = mqttserver.clients[Object.keys(mqttserver.clients)[i]];
                                             bool = true;
                                         }
-                                        j++;
+                                        i++;
                                     }
                                     mqttserver.publish({topic: message.request.type, payload: message.request.value},objFound);
-                                }
+                              //  }
                                 /*****/
                                 console.timeEnd("Transaction generated, validated and inserted");
-                                broadcast_response(fileAdresses,objTmp.table[i].Transaction.hash,get_publicKey_node(fileConfig),'valid',fileConfig,insertTx,objTmp.table[i].tabProof);
+                                broadcast_response(fileAdresses,objTmp.table[i].Transaction.hash,get_publicKey_node(fileConfig),'valid',fileConfig,insertTx,objTmp.table[i].tabProof,message.request.value);
                                 
                             }
                             if(objTmp.table[i].nb_node/2 <= objTmp.table[i].nb_reject){
@@ -776,6 +777,26 @@ var onmessage = function(payload) {
                 objTmp=JSON.parse(dataTmp);
                 for(i=0;i<Object.keys(objTmp.table).length;i++){
                     if(objTmp.table[i].Transaction.hash == hash && message.response == 'valid'){
+                        console.log('Insert Transaction : '+objTmp.table[i].Transaction.hash);
+                        
+                        var dataResponse=fs.readFileSync(fileResponse, 'utf8');
+                                               
+                        if(dataResponse.length != 0 ){
+                            var objResponse = JSON.parse(dataResponse);
+                            requestTmpFile = objResponse.requestTmp;
+                            sendFile = objResponse.send;
+                            if(sendFile == false){
+                            requestTmp=message.value;
+                            send = true;
+                            var objResponse = {
+                                requestTmp : requestTmp,
+                                send : send
+                            }
+
+                            var jsonResponse = JSON.stringify(objResponse);
+                            fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
+                            }  
+                        }
                         insert_Transaction(objTmp.table[i].Transaction,fileData,message.block);
                     }
                     // Delete the transaction from the tmp file
@@ -787,6 +808,7 @@ var onmessage = function(payload) {
         }else{
             console.log('Non valid signature');
         }
+           
     }
 
     //Receive request to modify/delete access rights
@@ -887,7 +909,7 @@ var onmessage = function(payload) {
             }
             var jsonMiner = JSON.stringify(objMiner);
             fs.writeFileSync(fileMiner, jsonMiner, 'utf8');
-        /*
+/*
             setInterval(function() {
                 switch_elected_miner(fileMiner,fileConfig,fileAdresses);
             }, 15000);*/
@@ -895,29 +917,6 @@ var onmessage = function(payload) {
             console.log('Non valid signature');
         }
     }   
-
-    // Receive the broadcated value from miner (ressource)
-    if(message.type == 17){
-
-                        var dataResponse=fs.readFileSync(fileResponse, 'utf8');
-                                               
-                        if(dataResponse.length != 0 ){
-                            var objResponse = JSON.parse(dataResponse);
-                            requestTmpFile = objResponse.requestTmp;
-                            sendFile = objResponse.send;
-                            if(sendFile == false){
-                            requestTmp=message.value;
-                            send = true;
-                            var objResponse = {
-                                requestTmp : requestTmp,
-                                send : send
-                            }
-
-                            var jsonResponse = JSON.stringify(objResponse);
-                            fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
-                            }  
-                        }
-    }
 };
 
 
@@ -930,7 +929,7 @@ var onstart = function(node) {
     console.log('----- Genesis Block -----');
     console.log( JSON.stringify(block) );
 
-  //  console.log('----- Start mining -----');
+    console.log('----- Start mining -----');
 
     var jsonfile = require('jsonfile');
     var file = __dirname+'/tmp/node/blocs/data.json';
@@ -948,7 +947,6 @@ var onstart = function(node) {
         table: []
         };
 
-        fs.writeFileSync(fileTmp, '', 'utf8');
 
     /*console.time("Transaction generated, validated and inserted");
    
@@ -1149,7 +1147,7 @@ function receiveNewNode(port){
         arp.getMAC(objReceived.ipadr, function(err, mac) {
             
             res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
-            console.log('Adding new node to network ');
+            console.log('New Node');
 
             var fileAdresses = __dirname+'/tmp/node/adresses.json';
             var fileConfig = __dirname+'/tmp/node/config.json';  
@@ -1249,7 +1247,7 @@ function receiveNewNode(port){
                     var adrMacTurn = require('os').networkInterfaces().wlan0[0].mac;   
                 }
                 if(role == 'user' && adrMacTurn == 'b8:27:eb:86:51:88'){
-                   // console.log('Config node user');
+                    console.log('Config node user');
                     // Generate keypair for the node  
                     var privateKeyUser = crypto.randomBytes(32);
                     var publicKeyUser = eccrypto.getPublic(privateKeyUser);
@@ -1268,7 +1266,7 @@ function receiveNewNode(port){
     app.all('/configNode', function(req, res) {
 
         res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
-        console.log('Configure Information of the node');
+        console.log('Config Node');
         // Save in the config file
 
    
@@ -1279,7 +1277,8 @@ function receiveNewNode(port){
         objReceived=req.body;
         var jsonfile = require('jsonfile');
         var arp = require('node-arp');
-       
+        console.log(req.body.ipadr);
+
         if(process.platform === 'win32'){
             var adrMac = require('os').networkInterfaces()['Wi-Fi'][0].address;
         }else{
@@ -1343,6 +1342,7 @@ function receiveNewNode(port){
                 saveNodeMacAdr(req.body.ipadr,req.body.port,adrMac,req.body.ipadr,req.body.role,trust,fileAdresses);
             }
 
+            console.log(adrMac); 
             res.send({statut : 'SUCCESS'});
         
     });
@@ -1389,10 +1389,10 @@ function receiveNewNode(port){
     app.post('/getAllNode',function(req, res){
         var fileAdresses = __dirname+'/tmp/node/adresses.json';
         var fileAccess = __dirname+'/tmp/node/list.json';
-        console.log('Received request to send Nodes');
+        console.log('Received request to send User');
         var ipRequest = getClientIp(req).slice(getClientIp(req).lastIndexOf(':')+1);
    
-        //    if (get_node_info_by_ip(ipRequest,fileAdresses).table.length>0){
+    //    if (get_node_info_by_ip(ipRequest,fileAdresses).table.length>0){
         var util = require('util');
         
         var nodes = [];
@@ -1415,7 +1415,7 @@ function receiveNewNode(port){
     });
 
     app.post('/updateAccessRights',function(req, res){
-        console.log('Received request to update access rights');
+        console.log('Received request to update Access control');
         
         var fileAdresses = __dirname+'/tmp/node/adresses.json';
         var fileAccess = __dirname+'/tmp/node/list.json';
@@ -1427,7 +1427,7 @@ function receiveNewNode(port){
     });
 
     app.post('/deleteAccessRights',function(req, res){
-        console.log('Received request to delete access rights');
+        console.log('Received request to delete Access rights');
         var fileAdresses = __dirname+'/tmp/node/adresses.json';
         var fileAccess = __dirname+'/tmp/node/list.json';
         var fileConfig = __dirname+'/tmp/node/config.json';
@@ -1438,7 +1438,7 @@ function receiveNewNode(port){
     });
 
     app.post('/addAccessRights',function(req, res){
-        console.log('Received request to add access rights');
+        console.log('Received request to add Access rights');
         
         var fileAdresses = __dirname+'/tmp/node/adresses.json';
         var fileAccess = __dirname+'/tmp/node/list.json';
@@ -1467,6 +1467,7 @@ function receiveNewNode(port){
 
          var ipRequest = getClientIp(req).slice(getClientIp(req).lastIndexOf(':')+1);
         
+        console.log("nodeinfo :",get_node_info_by_ip(ipRequest,fileAdresses));
         request = {
             ip : getClientIp(req),
             requester : get_node_info_by_ip(ipRequest,fileAdresses).table[0].adr,
@@ -1478,6 +1479,8 @@ function receiveNewNode(port){
             //obligations : '',
             };
       
+        console.log(request);
+       
 
         var objResponse = {
             requestTmp : requestTmp,
@@ -1486,17 +1489,16 @@ function receiveNewNode(port){
 
         var jsonResponse = JSON.stringify(objResponse);
         fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
-            var time = 0;
+            
             var refreshIntervalId = setInterval(function() {
                 var dataResponse=fs.readFileSync(fileResponse, 'utf8');
-                time ++;
+               
                 if(dataResponse.length != 0 ){
                     var objResponse = JSON.parse(dataResponse);
                     requestTmpFile = objResponse.requestTmp;
                     sendFile = objResponse.send;
-
                     if(sendFile == true && requestTmpFile !=''){
-                        console.log('Responding to requester ... ');
+                        console.log('Send to User the value');
                         res.json(requestTmpFile);
                         requestTmp='';  
                         send = false;
@@ -1551,6 +1553,11 @@ function receiveNewNode(port){
             res.send(JSON.stringify(objdata));
         });
 
+        app.post('/receiveValue',function(req,res){
+            res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
+            console.log('Received request to send BC');
+            requestTmp = 'This is the value';
+        });
 
         app.listen(port, function() {
         });
@@ -1645,27 +1652,6 @@ function get_node_info_by_adr(adr,fileAdresses){
             //Test adress mac and public key if exist
             if(objAdresses.table[i].Node.adr == adr){
                 data.table.push({ ip : objAdresses.table[i].Node.IP, port : objAdresses.table[i].Node.port, role : objAdresses.table[i].Node.role, mac : objAdresses.table[i].Node.MAC})
-            } 
-        }
-    }
-    return data;
-}
-
-function get_node_info_by_mac(mac,fileAdresses){
-    var objAdresses = {
-        table: []
-        };
-    var dataAdresses=fs.readFileSync(fileAdresses, 'utf8');
-    var data = {
-        table : []
-    } 
-    
-    if(dataAdresses.length != 0 ){
-        objAdresses = JSON.parse(dataAdresses);
-        for(i=0;i<Object.keys(objAdresses.table).length;i++){
-            //Test adress mac and public key if exist
-            if(objAdresses.table[i].Node.MAC == mac){
-                data.table.push({ ip : objAdresses.table[i].Node.IP, port : objAdresses.table[i].Node.port, role : objAdresses.table[i].Node.role, adr : objAdresses.table[i].Node.adr})
             } 
         }
     }
@@ -1795,6 +1781,7 @@ function configNode(ip,mac,role,port,trust,fileConfig){
     var obj = {
             table: []
         };
+       console.log(mac);
     obj.table.push({Server :{host : 'localhost',port : port, IP : ip, MAC : mac }, Key : {publicKey : '',privateKey : ''}, Role : {desc : role}});
     var jsonConfig = JSON.stringify(obj);
     fs.writeFileSync(fileConfig, jsonConfig, 'utf8');
@@ -1925,7 +1912,7 @@ function broadcast_transaction(fileAdresses,transaction,type,publicKey,fileConfi
     }
 }
 
-function broadcast_response(fileAdresses,transactionHash,publicKey,response,fileConfig,block,tabProof){
+function broadcast_response(fileAdresses,transactionHash,publicKey,response,fileConfig,block,tabProof,value){
     var objAdresses = {
         table: []
         };
@@ -1954,7 +1941,7 @@ function broadcast_response(fileAdresses,transactionHash,publicKey,response,file
                         port: nodeInfo.Server.port,
                         id: server.id
                         },
-                    message: { type: 13, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: nodeInfo.Key.publicKey, transactionHash : transactionHash, response : response, block : block, tabProof : tabProof, shaMsg : shaMsg, signature : signature } 
+                    message: { type: 13, host: nodeInfo.Server.IP, port: nodeInfo.Server.port, publicKey: nodeInfo.Key.publicKey, transactionHash : transactionHash, response : response, block : block, tabProof : tabProof, shaMsg : shaMsg, signature : signature, value : value } 
                 };
                 server.sendMessage({address: objAdresses.table[i].Node.IP, port: objAdresses.table[i].Node.port},packet);
             }
@@ -2019,51 +2006,33 @@ function verify_transaction_request(transaction,fileAccess,fileAdresses,fileData
 
     if(transaction.token != null){
         var boolToken=token.verify(transaction.token.requested,transaction.token.requester,transaction.token.hash,transaction.token.action,transaction.token.validity,transaction.token.timestamp);
-        //console.log('Bool Token : '+boolToken);
-        if(boolToken == false){
-            console.log('False token detected');
-            return false;    
-        } 
+        console.log('Bool Token : '+boolToken);
+        if(boolToken == false) return false;    
     }
     
     var boolTransaction=transaction_request.verify(transaction.hash,transaction.requested,transaction.requester,transaction.action,transaction.timestamp,transaction.token);  
-   // console.log('Bool Transaction : '+boolTransaction);
-    if(boolTransaction == false){
-        console.log('False Transaction detected');
-        return false;     
-    } 
+    console.log('Bool Transaction : '+boolTransaction);
+    if(boolTransaction == false) return false;   
     
 
     var boolExistTransaction=existTransaction(transaction.hash,fileData);
-  //  console.log('Bool Exist Transaction : '+boolExistTransaction);
-    if(boolExistTransaction == true){
-        console.log('Tentative de rejeu detectée');
-        return false;
-    } 
+    console.log('Bool Exist Transaction : '+boolExistTransaction);
+    if(boolExistTransaction == true) return false;
     
     
     var boolExistRequested=existNode(transaction.requested,fileAdresses);
- //   console.log('Bool Exist Requested : '+boolExistRequested);
-    if(boolExistRequested == false){
-        console.log('Requested doesn\'t exist');
-        return false;  
-    } 
+    console.log('Bool Exist Requested : '+boolExistRequested);
+    if(boolExistRequested == false) return false;
     
 
     var boolExistRequester=existNode(transaction.requester,fileAdresses);
- //   console.log('Bool Exist requester : '+boolExistRequester);
-    if(boolExistRequester == false){
-      console.log('Requester doesn\'t exist');
-      return false;  
-    } 
+    console.log('Bool Exist requester : '+boolExistRequester);
+    if(boolExistRequester == false) return false;
     
 
     var boolPermission=QueryPermission(fileAccess,fileAdresses,transaction.requester,transaction.requested,transaction.action,'conditions','obligations');
- //   console.log('Bool Permission : '+boolPermission);
-    if(boolPermission == false && transaction.token != null){
-        console.log('Permission non accorded');
-        return false;
-    } 
+    console.log('Bool Permission : '+boolPermission);
+    if(boolPermission == false && transaction.token != null) return false;
     
 
     return true;
@@ -2080,49 +2049,36 @@ function verify_transaction_use(transaction,fileAccess,fileAdresses,fileData){
 
      if(transaction.token != null){
         var boolToken=token.verify(transaction.token.requested,transaction.token.requester,transaction.token.hash,transaction.token.action,transaction.token.validity,transaction.token.timestamp);
-      //  console.log('Bool Token : '+boolToken);
-        if(boolToken == false){
-            console.log('False token detected');
-            return false;
-        } 
+        console.log('Bool Token : '+boolToken);
+        if(boolToken == false) return false;    
     }
     
     
     var boolTransaction=transaction_use.verify(transaction.hash,transaction.requested,transaction.requester,transaction.action,transaction.timestamp,transaction.token);  
-    //console.log('Bool Transaction : '+boolTransaction);
-    if(boolTransaction == false){
-        console.log('False Transaction detected');
-        return false;
-    } 
+    console.log('Bool Transaction : '+boolTransaction);
+    if(boolTransaction == false) return false;   
+    
 
     var boolExistTransaction=existTransaction(transaction.hash,fileData);
-   // console.log('Bool Exist Transaction : '+boolExistTransaction);
-    if(boolExistTransaction == true){
-        console.log('Tentative de rejeu detectée');
-        return false;
-    } 
+    console.log('Bool Exist Transaction : '+boolExistTransaction);
+    if(boolExistTransaction == true) return false;
     
-    var boolExistRequested=existNode(transaction.requested,fileAdresses);
-   // console.log('Bool Exist Requested : '+boolExistRequested);
-    if(boolExistRequested == false){
-        console.log('Requested doesn\'t exist');
-        return false;
-    }
+    
+    /*var boolExistRequested=existNode(transaction.requested,fileAdresses);
+    console.log('Bool Exist Requested : '+boolExistRequested);
+    if(boolExistRequested == false) return false;
+    */
 
     var boolExistRequester=existNode(transaction.requester,fileAdresses);
-   // console.log('Bool Exist requester : '+boolExistRequester);
-        console.log('Requester doesn\'t exist');
-        return false;
-    } 
+    console.log('Bool Exist requester : '+boolExistRequester);
+    if(boolExistRequester == false) return false;
     
 
     var boolPermission=QueryPermission(fileAccess,transaction.requester,transaction.requested,transaction.action,'conditions','obligations');
-   // console.log('Bool Permission : '+boolPermission);
-    if(boolPermission == false){
-        console.log('Permission non accorded');
-        return false;
-    }
-  
+    console.log('Bool Permission : '+boolPermission);
+    if(boolPermission == false) return false;
+    
+
     return true;
 }
 
@@ -2227,64 +2183,42 @@ function insert_Transaction(transaction,fileData,blockN){
 function check_efficiency(transaction,fileAdresses,fileData,fileAccess){
 
     boolExistTransaction = existTransaction(transaction.hash,fileData);
-   // console.log('Exist Transaction : '+boolExistTransaction);
-    if(boolExistTransaction == false){
+    console.log('Exist Transaction : '+boolExistTransaction);
+    if(boolExistTransaction == false) return false;
 
-        console.log('Tentative de rejeu detectée');
-      return false; 
-    }
-
-    boolExistToken = existToken(transaction.token.hash,fileData);
-    //console.log('Exist Token : '+boolExistToken);
-    if(boolExistToken == false){
-
-        console.log('False token detected');
-        return false; 
-    }
+     boolExistToken = existToken(transaction.token.hash,fileData);
+    console.log('Exist Token : '+boolExistToken);
+    if(boolExistToken == false) return false;
+    
 
     boolHasPermission = QueryPermission(fileAccess,fileAdresses,transaction.requester,transaction.requested,transaction.action,transaction.conditions,transaction.obligations);
-    //console.log('Has Permission : '+boolHasPermission);
-    if(boolHasPermission == false){
+    console.log('Has Permission : '+boolHasPermission);
+    if(boolHasPermission == false) return false;
 
-        console.log('Permission non accorded');
-        return false;
-    }
     var token=new Token();
     var transaction_request= new TransactionRequest();
 
     if(transaction.token != null){
         var boolToken=token.verify(transaction.token.requested,transaction.token.requester,transaction.token.hash,transaction.token.action,transaction.token.validity,transaction.token.timestamp);
-      //  console.log('Bool Token : '+boolToken);
-        if(boolToken == false){
-
-            console.log('False token detected');
-        return false;
-        }
+        console.log('Bool Token : '+boolToken);
+        if(boolToken == false) return false;    
     }
     
    
     
     var boolTransaction=transaction_request.verify(transaction.hash,transaction.requested,transaction.requester,transaction.action,transaction.timestamp,transaction.token);  
-    //console.log('Bool Transaction : '+boolTransaction);
-    if(boolTransaction == false){
-
-        console.log('False Transaction detected');
-        return false;
-    } 
-
-    var boolExistRequested=existNode(transaction.requested,fileAdresses);
-    //console.log('Bool Exist Requested : '+boolExistRequested);
-    if(boolExistRequested == false){
-        console.log('Requested doesn\'t exist');
-        return false;
-    }
+    console.log('Bool Transaction : '+boolTransaction);
+    if(boolTransaction == false) return false;   
+    
+    /*var boolExistRequested=existNode(transaction.requested,fileAdresses);
+    console.log('Bool Exist Requested : '+boolExistRequested);
+    if(boolExistRequested == false) return false;
+    */
 
     var boolExistRequester=existNode(transaction.requester,fileAdresses);
-   // console.log('Bool Exist requester : '+boolExistRequester);
-    if(boolExistRequester == false){
-      console.log('Requester doesn\'t exist');
-      return false;
-    }
+    console.log('Bool Exist requester : '+boolExistRequester);
+    if(boolExistRequester == false) return false;
+
     return true;
 }
 
@@ -2356,7 +2290,7 @@ function update_adresses(publicKey,mac,fileAdresses){
     var objAdresses = {
         table: []
         };
-
+       // console.log('update_adresses : '+publicKey+' MAC : '+mac);
     var dataAdresses=fs.readFileSync(fileAdresses, 'utf8');
     
     if(dataAdresses.length != 0 ){
@@ -2371,21 +2305,19 @@ function update_adresses(publicKey,mac,fileAdresses){
     }
 }
 
-function update_access_list(publicKey,mac,fileAccess,fileAdresses){
+function update_access_list(publicKey,mac,fileAccess){
     var dataAccess=fs.readFileSync(fileAccess,'utf8');
     var objAccess= {
         table: []
     };
 
-    nodeInfo = get_node_info_by_mac(mac,fileAdresses);
-  
     if(dataAccess.length != 0 ){
         var objAccess = JSON.parse(dataAccess);
             
         for(i=0;i<objAccess.table.length;i++){
-            if(objAccess.table[i].Node.adr == mac || objAccess.table[i].Node.adr == nodeInfo.table[0].adr) objAccess.table[i].Node.adr = publicKey;
+            if(objAccess.table[i].Node.adr == mac) objAccess.table[i].Node.adr = publicKey;
                 for(k=0;k<objAccess.table[i].Node.accesslist.length;k++){
-                    if(objAccess.table[i].Node.accesslist[k].ressource == mac || objAccess.table[i].Node.accesslist[k].ressource == nodeInfo.table[0].adr) objAccess.table[i].Node.accesslist[k].ressource = publicKey; 
+                    if(objAccess.table[i].Node.accesslist[k].ressource == mac) objAccess.table[i].Node.accesslist[k].ressource = publicKey; 
                 }
         }
         var jsonAccess = JSON.stringify(objAccess);
@@ -2488,6 +2420,7 @@ function add_access_rights(fileAccess,listAccess){
                         }
                 }
                 
+                console.log('Bool Node : '+boolNode+', boolAccess : '+boolAccess);
                 // Node doesn't exist, save all the rights !
                 if(boolNode == false){
                     for(j=0;j<listAccess.length;j++){
@@ -2687,7 +2620,7 @@ function setup() {
     mqttserver.authorizePublish = authorizePublish;
     mqttserver.authorizeSubscribe = authorizeSubscribe;
     
-    console.log('IoTChain MQTT\'s server is up and running.');
+    console.log('IoTChain server is up and running.');
 }
 
 mqttserver.on("error", function (err) {
@@ -2696,9 +2629,9 @@ mqttserver.on("error", function (err) {
 
 mqttserver.on('clientConnected', function (client) {
     console.log('Client Connected \t:= ', client.id);
- //   console.log("Checking if Node ",client.id," exist !?");
+    console.log("Checking if Node ",client.id," exist !?");
     if (smartContract.existNodeMacAdr(client.id,__dirname+'/tmp/node/adresses.json')){
-     //   console.log("Node ",client.id," exist");
+        console.log("Node ",client.id," exist");
         //mqttserver.publish({topic:"REQUEST_USE", payload:'foo'}, client);
     }else{
         //mqttserver.publish({topic:"MINERS", payload:'foo'}, client);
@@ -2708,144 +2641,38 @@ mqttserver.on('clientConnected', function (client) {
 });
 
 mqttserver.on('published', function (packet, client) {
-    
-    if(packet.payload.length !=0){
-
-        //console.log("Published :=", packet);
+    //console.log("Published :=", packet);
     if (packet.topic=="INFO"){
     console.log('Client \t:= ', client.id,' @ ',packet.payload, " Address updated");
     if(existNodeMacAdr(client.id,__dirname+'/tmp/node/adresses.json')){
-        update_access_list(toHexString(packet.payload),client.id,__dirname+'/tmp/node/list.json',__dirname+'/tmp/node/adresses.json');
         update_adresses(toHexString(packet.payload),client.id,__dirname+'/tmp/node/adresses.json');
         broadcast_publicKey(__dirname+'/tmp/node/adresses.json',toHexString(packet.payload),client.id,__dirname+'/tmp/node/config.json')
     }
      }
-    if(packet.topic=="Temp"){
-            var value=toHexString(packet.payload);
-            var dataResponse=fs.readFileSync(fileResponse, 'utf8');
+    if (packet.topic=="Temp"){
+                                var value=toHexString(packet.payload);
+                                console.log(packet);
+                                /******/
+                                console.log("Temp recieved : ", value);
+                                var dataResponse=fs.readFileSync(fileResponse, 'utf8');
 
-            if(dataResponse.length != 0 ){
-                var objResponse = JSON.parse(dataResponse);
-                requestTmpFile = objResponse.requestTmp;
-                sendFile = objResponse.send;
-                if(sendFile == false){
-                requestTmp=packet.payload;
-                send = true;
-                var objResponse = {
-                    requestTmp : requestTmp.toString(),
-                    send : send
-                }
-                var jsonResponse = JSON.stringify(objResponse);
-                fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
-                }  
-            }else{
-                requestTmp=packet.payload;
-                send = true;
-                var objResponse = {
-                    requestTmp : requestTmp.toString(),
-                    send : send
-                }
+                                if(dataResponse.length != 0 ){
+                                    var objResponse = JSON.parse(dataResponse);
+                                    requestTmpFile = objResponse.requestTmp;
+                                    sendFile = objResponse.send;
+                                    if(sendFile == false){
+                                    requestTmp=value;
+                                    send = true;
+                                    var objResponse = {
+                                        requestTmp : requestTmp,
+                                        send : send
+                                    }
 
-                var jsonResponse = JSON.stringify(objResponse);
-                fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
-            }
+                                    var jsonResponse = JSON.stringify(objResponse);
+                                    fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
+                                    }  
+                                }
     }
-    if (packet.topic=="LightON"){
-         var value=toHexString(packet.payload);
-            var dataResponse=fs.readFileSync(fileResponse, 'utf8');
-
-            if(dataResponse.length != 0 ){
-                var objResponse = JSON.parse(dataResponse);
-                requestTmpFile = objResponse.requestTmp;
-                sendFile = objResponse.send;
-                if(sendFile == false){
-                requestTmp=packet.payload;
-                send = true;
-                var objResponse = {
-                    requestTmp : 'ON',
-                    send : send
-                }
-                var jsonResponse = JSON.stringify(objResponse);
-                fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
-                }  
-            }else{
-                requestTmp=packet.payload;
-                send = true;
-                var objResponse = {
-                    requestTmp : 'ON',
-                    send : send
-                }
-
-                var jsonResponse = JSON.stringify(objResponse);
-                fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
-            }
-
-    }
-    if (packet.topic=="LightOFF"){
-            var value=toHexString(packet.payload);
-            var dataResponse=fs.readFileSync(fileResponse, 'utf8');
-
-            if(dataResponse.length != 0 ){
-                var objResponse = JSON.parse(dataResponse);
-                requestTmpFile = objResponse.requestTmp;
-                sendFile = objResponse.send;
-                if(sendFile == false){
-                requestTmp=packet.payload;
-                send = true;
-                var objResponse = {
-                    requestTmp : 'OFF',
-                    send : send
-                }
-                var jsonResponse = JSON.stringify(objResponse);
-                fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
-                }  
-            }else{
-                requestTmp=packet.payload;
-                send = true;
-                var objResponse = {
-                    requestTmp : 'OFF',
-                    send : send
-                }
-
-                var jsonResponse = JSON.stringify(objResponse);
-                fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
-            }
-    }
-
-    if(packet.topic=="PIR"){
-            var value=toHexString(packet.payload);
-            var dataResponse=fs.readFileSync(fileResponse, 'utf8');
-
-            if(dataResponse.length != 0 ){
-                var objResponse = JSON.parse(dataResponse);
-                requestTmpFile = objResponse.requestTmp;
-                sendFile = objResponse.send;
-                if(sendFile == false){
-                requestTmp=packet.payload;
-                send = true;
-                var objResponse = {
-                    requestTmp : requestTmp.toString(),
-                    send : send
-                }
-                var jsonResponse = JSON.stringify(objResponse);
-                fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
-                }  
-            }else{
-                requestTmp=packet.payload;
-                send = true;
-                var objResponse = {
-                    requestTmp : requestTmp.toString(),
-                    send : send
-                }
-
-                var jsonResponse = JSON.stringify(objResponse);
-                fs.writeFileSync(fileResponse, jsonResponse, 'utf8');
-            }
-    }
-
-    }
-
-    
 });
 function unicodeStringToTypedArray(s) {
     var escstr = encodeURIComponent(s);
@@ -2864,11 +2691,11 @@ mqttserver.on('subscribed', function (topic, client) {
         mqttserver.publish({topic:"MINERS", payload:'foo'}, client);
     }
 
-   // console.log(client.id," Subscribed in ", topic," topic");
+    console.log(client.id," Subscribed in ", topic," topic");
     });
 
 mqttserver.on('unsubscribed', function (topic, client) {
-  //  console.log('unsubscribed := ', topic);
+    console.log('unsubscribed := ', topic);
 });
 
 mqttserver.on('clientDisconnecting', function (client) {

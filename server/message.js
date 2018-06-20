@@ -45,6 +45,7 @@ var RPCMessage = {
     UPDATEACCESSRIGHTS : 14,
     SIGNEDMESSAGE : 15,
     ELECTEDMINER : 16,
+    MESSAGEVALUE : 17,
 };
 
 /*

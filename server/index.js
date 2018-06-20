@@ -167,6 +167,9 @@ Server.prototype.onData = function(payload) {
     if (typeof this._options.onmessage === 'function' && packet.message.type === RpcMessage.ELECTEDMINER) {
        return this._options.onmessage(payload); 
     }
+    if (typeof this._options.onmessage === 'function' && packet.message.type === RpcMessage.MESSAGEVALUE) {
+       return this._options.onmessage(payload); 
+    }
    
     /*
      * Format of 'packet'.
